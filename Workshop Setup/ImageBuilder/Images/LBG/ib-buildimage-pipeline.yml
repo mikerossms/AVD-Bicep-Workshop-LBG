@@ -1,0 +1,140 @@
+#Use the VMSS based windows pool
+pool: "Windows VMSS"
+
+trigger:
+- main
+
+schedules:
+- cron: "0 2 8-14 * 3"
+  displayName: Runs on the 2nd wednesday at 2am of the month (to give time for the patches to land)
+  branches:
+    include:
+    - main
+
+# Pull in the parameters required to build the image and set up naming
+parameters:
+- name: imageName
+  displayName: The name of the image (must be the same name as the folder in the code base)
+  type: string
+  default: "Core"
+- name: subID
+  displayName: The subscription ID where the ImageBuilder resources are deployed
+  type: string
+  default: "f258c6c4-0a76-40eb-b002-b20a8fde7d70"
+# - name: rgName
+#   type: string
+#   default: "rg-imagebuilder-prod-uksouth-001"
+- name: localenv
+  displayName: Deploy under which environment name and tags?
+  type: string
+  default: "prod"
+  values:
+    - dev
+    - test
+    - uat
+    - prod
+- name: location
+  displayName: Azure region location e.g. uksouth, ukwest
+  type: string
+  default: "uksouth"
+- name: workloadName
+  displayName: No spaces string that is used to name the workload for resource naming and tagging
+  type: string
+  default: "imagebuilder"
+- name: workloadNameShort
+  displayName: An abbreviated version of the workload name (max 4 characters) for string length restricted resources e.g. VMs
+  type: string
+  default: "IB"
+- name: publisher
+  displayName: "The name used as the Publisher on any imaages that are created"
+  type: string
+  default: "AVDSquad"
+- name: sequenceNumber
+  displayName: "The sequence number used as part of the resource naming convention e.g. 001.  Typically the default is fine"
+  type: string
+  default: "001"
+- name: buildTimeout
+  displayName: "The maximum runtime of the build in minutes before timing out"
+  type: number
+  default: 180
+- name: doBuildImage
+  displayName: Do the actual image build (long running task)?
+  type: boolean
+  default: true
+- name: doDeleteOldTemplates
+  displayName: Remove old image templates?
+  type: boolean
+  default: true
+
+
+variables:
+- name: rgImageName #e.g. rg-imagebuilder-prod-uksouth-001
+  value: "rg-${{ lower(parameters.workloadName) }}-${{ lower(parameters.localenv) }}-${{ lower(parameters.location) }}-${{ lower(parameters.sequenceNumber) }}"
+- name: rgStorageName #e.g. rg-imagebuilder-prod-uksouth-001
+  value: "rg-${{ lower(parameters.workloadName) }}-${{ lower(parameters.localenv) }}-${{ lower(parameters.location) }}-${{ lower(parameters.sequenceNumber) }}"
+- name: storageName #e.g. stibproduksouth001
+  value: "st${{ lower(parameters.workloadNameShort) }}${{ lower(parameters.localenv) }}${{ lower(parameters.location) }}${{ lower(parameters.sequenceNumber) }}"
+
+jobs:
+- job:
+  displayName: "Build the Image"
+  timeoutInMinutes: ${{ parameters.buildTimeout }}
+  steps:
+    #checkout the repo
+    - checkout: self
+      submodules: true
+
+    #Show the directory listing (visual confirm step)
+    - script: dir
+      displayName: "Repo Directory Listing"
+    
+    #Remove the old templates (optional)
+    - task: AzurePowerShell@5
+      condition: and(succeeded(), eq('${{ parameters.doDeleteOldTemplates }}', 'true'))
+      displayName: "Remove Previous Templates"
+      inputs:
+        ConnectedServiceNameARM: "AVD Squad Contributor"
+        scriptType: filePath
+        scriptPath: $(Build.SourcesDirectory)\Scripts\CleanUpTemplates.ps1"
+        scriptArguments:
+          -imageName ${{ parameters.imageName }}
+          -imageBuilderRG $(rgImageName)
+          -subscriptionID ${{ parameters.subID }}
+        azurePowerShellVersion: latestVersion
+
+    #Upload the build scripts to the software repo
+    - task: AzurePowerShell@5
+      displayName: "Upload Build Scripts"
+      inputs:
+        ConnectedServiceNameARM: "AVD Squad Contributor"
+        scriptType: filePath
+        scriptPath: $(Build.SourcesDirectory)\Scripts\UploadBuildScripts.ps1"
+        scriptArguments:
+          -imageName ${{ parameters.imageName }}
+          -repoName $(storageName)
+          -repoRG $(rgStorageName)
+          -subscriptionID ${{ parameters.subID }}
+        azurePowerShellVersion: latestVersion
+
+    #Build the image template and (optional) run the build
+    - task: AzurePowerShell@5
+      displayName: "Run the Image Build"
+      inputs:
+        ConnectedServiceNameARM: "AVD Squad Contributor"
+        scriptType: filePath
+        scriptPath: $(Build.SourcesDirectory)\Scripts\BuildImage.ps1"
+        scriptArguments:
+          -imageName ${{ parameters.imageName }}
+          -imageRG $(rgImageName)
+          -storageRepoName $(storageName)
+          -storageRepoRG $(rgStorageName)
+          -subscriptionID ${{ parameters.subID }}
+          -ibTimeout ${{ parameters.buildTimeout }}
+          -localenv ${{ lower(parameters.localenv) }}
+          -location ${{ parameters.location }}
+          -workloadName ${{ lower(parameters.workloadName) }}
+          -workloadNameShort ${{ lower(parameters.workloadNameShort) }}
+          -publisher ${{ parameters.publisher }}
+          -sequenceNum ${{ parameters.sequenceNumber }}
+          -doBuildImage $${{ parameters.doBuildImage }}  # Double $$ to pass in $true or $false bollean rather than string true or false
+        azurePowerShellVersion: latestVersion
