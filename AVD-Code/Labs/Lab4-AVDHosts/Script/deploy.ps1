@@ -22,10 +22,7 @@ param (
     [String]$workloadNameDiag = "diag",
     [Parameter(Mandatory)]
     [String]$avdVnetCIDR,
-    [String]$vmHostSize = "Standard_D2s_v3",
-    [String]$storageAccountType = "StandardSSD_LRS",
     [Int]$numberOfHostsToDeploy = 1,
-    [Object]$imageToDeploy = @{},
     [Bool]$dologin = $true,
     [Bool]$updateVault = $true
 )
@@ -240,9 +237,6 @@ $buildHostOutput = New-AzResourceGroupDeployment -Name "Deploy-Hosts" `
     hostPoolToken=$hpToken
     subnetID=$backplaneOutput.Outputs.subNetId.Value
     keyVaultName=$backplaneOutput.Outputs.keyvaultName.Value
-    vmSize=$vmHostSize
-    vmImageObject=$imageToDeploy
-    storageAccountType=$storageAccountType
 }
 
 if (-not $buildHostOutput) {
