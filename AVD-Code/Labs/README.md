@@ -1,4 +1,4 @@
-# AVD Template Code Deployment
+# AVD Template Code / Labs Deployment
 
 The code in this folder is to provide a skelington version of the AVD deployment code for you to work on.  In every case the resource / module call has been provided and it will be up to you to determine the right properties, parameters and variables to fill in.
 
