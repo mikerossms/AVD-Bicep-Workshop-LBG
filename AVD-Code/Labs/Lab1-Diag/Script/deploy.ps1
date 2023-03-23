@@ -29,11 +29,6 @@ if (-not $uniqueIdentifier) {
     exit 1
 }
 
-if (-not $avdVnetCIDR) {
-    Write-Error "A unique network IP address range (CIDR) is required and will have been provided.  Please use the same for EVERY deployment"
-    exit 1
-}
-
 
 #Define the name of both the diagnostic and AVD deployment RG
 $diagRGName = "rg-$workloadNameDiag-$location-$localEnv-$uniqueIdentifier"

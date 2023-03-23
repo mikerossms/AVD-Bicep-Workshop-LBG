@@ -154,16 +154,15 @@ $backplaneOutput = New-AzResourceGroupDeployment -Name "Deploy-Backplane" `
     workloadName=$workloadNameAVD
     rgDiagName=$diagRGName
     lawName=$diagOutput.Outputs.lawName.Value
-    domainName=$domainName
     avdVnetCIDR=$avdVnetCIDR
     avdSnetCIDR=$avdSnetCIDR
     adServerIPAddresses=$adServerIPAddresses
     deployVault=$updateVault
 }
 
-if (-not $backplaneOutput.Outputs.hpName.Value) {
-    Write-Error "ERROR: Failed to deploy BackPlane to Resource Group: $avdRGName"
-    exit 1
-}
+# if (-not $backplaneOutput.Outputs.subNetId.Value) {
+#     Write-Error "ERROR: Failed to deploy BackPlane to Resource Group: $avdRGName"
+#     exit 1
+# }
 
 Write-Host "Finished Deployment" -ForegroundColor Green

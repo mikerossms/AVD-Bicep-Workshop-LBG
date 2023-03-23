@@ -22,6 +22,10 @@ param (
     [String]$workloadNameDiag = "diag",
     [Parameter(Mandatory)]
     [String]$avdVnetCIDR,
+    [String]$vmHostSize = "Standard_D2s_v3",
+    [String]$storageAccountType = "StandardSSD_LRS",
+    [Int]$numberOfHostsToDeploy = 1,
+    [Object]$imageToDeploy = @{},
     [Bool]$dologin = $true,
     [Bool]$updateVault = $true
 )
@@ -40,6 +44,12 @@ if (-not $avdVnetCIDR) {
 #Define the name of both the diagnostic and AVD deployment RG
 $diagRGName = "rg-$workloadNameDiag-$location-$localEnv-$uniqueIdentifier"
 $avdRGName = "rg-$workloadNameAVD-$location-$localEnv-$uniqueIdentifier"
+
+#Leave these settings as they are - they set up the connection and access to the domain.
+$domainName = "quberatron.com"
+$domainAdminUsername = "vmjoiner@$domainName"
+$domainOUPath = "OU=LBGAVD,DC=quberatron,DC=com"
+$localAdminUsername = "localadmin"
 
 #Configure the domain and local admin passwords
 #Note: Setting them to a string is required as we are passing in a secure() string to the bicep code and it must be converted to a secure string in powershell
@@ -168,5 +178,82 @@ if (-not $backplaneOutput.Outputs.hpName.Value) {
 }
 
 
+#Change the name of the "SessionDesktop" to be something more helpful (advanced, not required)
+#Basically, when you use Bicep or ARM to deploy the application group there is no option to change the name of the Session Desktop to
+#something more helpful.  so if you have a lot of desktops, it can get really confusing.  It can, of course, be changed
+#in the portal, but the only way to do it programatically is to use the Azure REST API
+
+Write-Host "Changing the name of the Application Group Session Desktop to something more useful" -foregroundColor Green
+$accessToken = (Get-AzAccessToken).Token
+$headers = @{
+    Authorization = "Bearer $accessToken"
+    'Content-Type' = 'application/json'
+}
+$url = "https://management.azure.com/subscriptions/$subId/resourceGroups/$avdRGName/providers/Microsoft.DesktopVirtualization/applicationGroups/$($backplaneOutput.Outputs.appGroupName.Value)/desktops/SessionDesktop?api-version=2022-09-09"
+$newSessionDesktopName = "Desktop ($currentUser)"
+$content = @{
+    properties = @{
+        friendlyName = "$newSessionDesktopName"
+    }
+} | ConvertTo-Json
+$restOutput = Invoke-RestMethod -Method Patch -Uri $url -Body $content -Headers $headers
+
+if (-Not $restOutput) {
+    Write-Warning "Unable to change the name of the Session Desktop."
+}
+
+#The next step is to build the hosts and add them to both the AD and the HostPool.  While this could be done in the 
+#backplane.bicep file, it is usually better to pull this into its own deployment.  why?  Because you are highly likley to need
+#to deploy additional hosts at a later date and you dont want to have to redeploy the entire backplane.
+
+#First we need to get the hostpool and generate a new registration token.  This token is required to add the Host to the Pool
+#and is "baked into" the host when it is build though an extension.  The token is only valid for a short period of time, enough
+#to add the host to the pool.  Once in the pool the registration token is no longer required.
+#Minimum is 1 hours, maximum is 30 days.  Typically set around 2 hours (or more if deploying lots of hosts)
+Write-Host "Generating a new hostpool registration token" -ForegroundColor Green
+$expiryTime = $((Get-Date).ToUniversalTime().AddHours(2).ToString('yyyy-MM-ddTHH:mm:ss.fffffffZ'))
+$hpToken = (New-AzWvdRegistrationInfo -HostPoolName $backplaneOutput.Outputs.hpName.Value -ResourceGroupName $avdRGName -ExpirationTime $expiryTime).token
+
+if (-not $hpToken) {
+    Write-Error "ERROR: Unable to generate a new host pool token"
+    exit 1
+}
+
+#Deploy the hosts and attach them to AADDS and the hostpool
+Write-Host "Deploying/Updating Hosts (deployHosts.bicep) to Resource Group: $avdRGName" -ForegroundColor Green
+$buildHostOutput = New-AzResourceGroupDeployment -Name "Deploy-Hosts" `
+ -ResourceGroupName $avdRGName `
+ -TemplateFile "$PSScriptRoot/../Bicep/Hosts/deployHosts.bicep" `
+ -Verbose `
+ -TemplateParameterObject @{
+    location=$location
+    localEnv=$localEnv
+    uniqueName=$uniqueIdentifier
+    tags=$tags
+    workloadName=$workloadNameAVD
+    domainName=$domainName
+    domainAdminUsername=$domainAdminUsername
+    domainOUPath=$domainOUPath
+    localAdminUsername=$localAdminUsername
+    numberOfHostsToDeploy=$numberOfHostsToDeploy
+    hostPoolName=$backplaneOutput.Outputs.hpName.Value
+    hostPoolToken=$hpToken
+    subnetID=$backplaneOutput.Outputs.subNetId.Value
+    keyVaultName=$backplaneOutput.Outputs.keyvaultName.Value
+    vmSize=$vmHostSize
+    vmImageObject=$imageToDeploy
+    storageAccountType=$storageAccountType
+}
+
+if (-not $buildHostOutput) {
+    Write-Error "Host Deployment Failed"
+    exit 1
+}
 
 Write-Host "Finished Deployment" -ForegroundColor Green
+Write-Host "---"
+Write-Host "What next?"
+Write-Host "1: Make sure you have been added to the Application Group and add any other Users or Groups"
+Write-Host "2: Check that the hosts appear in the Host Pool"
+Write-Host "3: Access the AVD environment via the web (https://client.wvd.microsoft.com/arm/webclient/index.html)"
+Write-Host "---"

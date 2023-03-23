@@ -41,6 +41,9 @@ if (-not $avdVnetCIDR) {
 $diagRGName = "rg-$workloadNameDiag-$location-$localEnv-$uniqueIdentifier"
 $avdRGName = "rg-$workloadNameAVD-$location-$localEnv-$uniqueIdentifier"
 
+#Leave these settings as they are - they set up the connection and access to the domain.
+$domainName = "quberatron.com"
+
 #Configure the domain and local admin passwords
 #Note: Setting them to a string is required as we are passing in a secure() string to the bicep code and it must be converted to a secure string in powershell
 #and secure string cannot be blank
@@ -162,11 +165,9 @@ $backplaneOutput = New-AzResourceGroupDeployment -Name "Deploy-Backplane" `
     appGroupUserID=$currentUserId
 }
 
-if (-not $backplaneOutput.Outputs.hpName.Value) {
+if (-not $backplaneOutput.Outputs.subNetId.Value) {
     Write-Error "ERROR: Failed to deploy BackPlane to Resource Group: $avdRGName"
     exit 1
 }
-
-
 
 Write-Host "Finished Deployment" -ForegroundColor Green

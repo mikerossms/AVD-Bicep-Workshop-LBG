@@ -143,28 +143,6 @@ be able to log into AVD.
 
 //KEY NOTE: Extensions need to deploy sequentially.  Bicep will try and deploy them in parallel.  What do you need to add to force the correct order?
 
-//Anti Malware Extension
-// resource VMAntiMalware 'Microsoft.Compute/virtualMachines/extensions@2022-11-01' = {
-//   name: 'AntiMalware'
-//   parent: vm
-//   location: location
-//   tags: tags
-//   properties: {
-//     //Work out the properties for extension
-//   }
-// }
-
-//Monitoring Extension which adds the monitoring agent to the VM
-// resource VMMonitoring 'Microsoft.Compute/virtualMachines/extensions@2022-11-01' = {
-//   name: 'AzureMonitorWindowsAgent'
-//   parent: vm
-//   location: location
-//   tags: tags
-//   properties: {
-//     //Work out the properties for extension
-//   }
-// }
-
 
 //Join the Domain (you can also now join the AAD in certain scenarios, but AVD is not yet supported for anything other than personal machines)
 //Domain join restarts the VM, so it is a good idea to make sure nothing else is being deployed at the same time (using dependsOn)
@@ -215,4 +193,12 @@ be able to log into AVD.
 //       }
 //     }
 //   }
+// }
+
+//Anti Malware Extension - see if you can work it out
+// resource VMAntiMalware 'Microsoft.Compute/virtualMachines/extensions@2022-11-01' = {
+// }
+
+//Monitoring Extension which adds the monitoring agent to the VM - see if you can work it out
+// resource VMMonitoring 'Microsoft.Compute/virtualMachines/extensions@2022-11-01' = {
 // }
