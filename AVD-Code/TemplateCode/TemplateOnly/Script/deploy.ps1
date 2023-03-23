@@ -13,15 +13,17 @@ It is also responsible for adding a user to the Application Group and changing t
 
 #Get the runtime parameters from the user.  You will need to change the "uniqueIdentifier" for each user to avoid clashes
 param (
-    [Parameter(Mandatory)]
-    [String]$uniqueIdentifier,
+    [String]$uniqueIdentifier = "full",
     [String]$location = "uksouth",
     [String]$localEnv = "dev",
     [String]$subID = "152aa2a3-2d82-4724-b4d5-639edab485af",
     [String]$workloadNameAVD = "avd",
     [String]$workloadNameDiag = "diag",
-    [Parameter(Mandatory)]
-    [String]$avdVnetCIDR,
+    [String]$avdVnetCIDR = "10.200.1.0/24",
+    [String]$vmHostSize = "Standard_D2s_v3",
+    [String]$storageAccountType = "StandardSSD_LRS",
+    [Int]$numberOfHostsToDeploy = 1,
+    [Object]$imageToDeploy = @{},
     [Bool]$dologin = $true,
     [Bool]$updateVault = $true
 )
@@ -30,12 +32,6 @@ if (-not $uniqueIdentifier) {
     Write-Error "A unique identifier MUST be specified.  Always use the same identifier for EVERY deployment"
     exit 1
 }
-
-if (-not $avdVnetCIDR) {
-    Write-Error "A unique network IP address range (CIDR) is required and will have been provided.  Please use the same for EVERY deployment"
-    exit 1
-}
-
 
 #Define the name of both the diagnostic and AVD deployment RG
 $diagRGName = "rg-$workloadNameDiag-$location-$localEnv-$uniqueIdentifier"
@@ -46,9 +42,6 @@ $domainName = "quberatron.com"
 $domainAdminUsername = "vmjoiner@$domainName"
 $domainOUPath = "OU=LBGAVD,DC=quberatron,DC=com"
 $localAdminUsername = "localadmin"
-
-#This is the number of hosts to deploy
-$numberOfHostsToDeploy = 1
 
 #Configure the domain and local admin passwords
 #Note: Setting them to a string is required as we are passing in a secure() string to the bicep code and it must be converted to a secure string in powershell
@@ -116,65 +109,65 @@ if (-not (Get-AzResourceGroup -Name $diagRGName -ErrorAction SilentlyContinue)) 
 }
 
 #Deploy the diagnostic.bicep code to that RG we just created
-# Write-Host "Deploying diagnostic.bicep to Resource Group: $diagRGName" -ForegroundColor Green
-# $diagOutput = New-AzResourceGroupDeployment -Name "Deploy-Diagnostics" -ResourceGroupName $diagRGName -TemplateFile "$PSScriptRoot/../Bicep/Diagnostics/diagnostics.bicep" -Verbose -TemplateParameterObject @{
-#     location=$location
-#     localEnv=$localEnv
-#     tags=$tags
-#     workloadName=$workloadNameDiag
-#     uniqueName=$uniqueIdentifier
-# }
+Write-Host "Deploying diagnostic.bicep to Resource Group: $diagRGName" -ForegroundColor Green
+$diagOutput = New-AzResourceGroupDeployment -Name "Deploy-Diagnostics" -ResourceGroupName $diagRGName -TemplateFile "$PSScriptRoot/../Bicep/Diagnostics/diagnostics.bicep" -Verbose -TemplateParameterObject @{
+    location=$location
+    localEnv=$localEnv
+    tags=$tags
+    workloadName=$workloadNameDiag
+    uniqueName=$uniqueIdentifier
+}
 
-# if (-not $diagOutput ) {
-#     Write-Error "ERROR: Cannot deploy diagnostic.bicep to Resource Group: $diagRGName"
-#     exit 1
-# }
+if (-not $diagOutput ) {
+    Write-Error "ERROR: Cannot deploy diagnostic.bicep to Resource Group: $diagRGName"
+    exit 1
+}
 
 
 #Create a resource group for the AVD resources if it does not already exist then check it has been created successfully
-# if (-not (Get-AzResourceGroup -Name $avdRGName -ErrorAction SilentlyContinue)) {
-#     Write-Host "Creating Resource Group: $avdRGName" -ForegroundColor Green
-#     if (-not (New-AzResourceGroup -Name $avdRGName -Location $location)) {
-#         Write-Error "ERROR: Cannot create Resource Group: $avdRGName"
-#         exit 1
-#     }
-# }
+if (-not (Get-AzResourceGroup -Name $avdRGName -ErrorAction SilentlyContinue)) {
+    Write-Host "Creating Resource Group: $avdRGName" -ForegroundColor Green
+    if (-not (New-AzResourceGroup -Name $avdRGName -Location $location)) {
+        Write-Error "ERROR: Cannot create Resource Group: $avdRGName"
+        exit 1
+    }
+}
 
-# # Get the Azure Username of the user currently logged in and running this script
-# $currentUser = (Get-AzContext | Select-Object -ExpandProperty Account).Id
+# Get the Azure Username of the user currently logged in and running this script
+$currentUser = (Get-AzContext | Select-Object -ExpandProperty Account).Id
 
-# # Get the ID of this user from Azure AD
-# $currentUserId = (Get-AzADUser -UserPrincipalName $currentUser).Id
+# Get the ID of this user from Azure AD
+$currentUserId = (Get-AzADUser -UserPrincipalName $currentUser).Id
 
 #Deploy the AVD backplane bicep code which includes the networks, keyvault, hostpool, app grup and worspace.
 #the user deploying this script is also then added to the App Group as a user
-# Write-Host "Deploying Infrastructure (backplane.bicep) to Resource Group: $avdRGName" -ForegroundColor Green
-# $backplaneOutput = New-AzResourceGroupDeployment -Name "Deploy-Backplane" `
-#  -ResourceGroupName $avdRGName `
-#  -TemplateFile "$PSScriptRoot/../Bicep/Infrastructure/backplane.bicep" `
-#  -domainAdminPassword $domainAdminPassword `
-#  -localAdminPassword $localAdminPassword `
-#  -Verbose `
-#  -TemplateParameterObject @{
-#     location=$location
-#     localEnv=$localEnv
-#     uniqueName=$uniqueIdentifier
-#     tags=$tags
-#     workloadName=$workloadNameAVD
-#     rgDiagName=$diagRGName
-#     lawName=$diagOutput.Outputs.lawName.Value
-#     domainName=$domainName
-#     avdVnetCIDR=$avdVnetCIDR
-#     avdSnetCIDR=$avdSnetCIDR
-#     adServerIPAddresses=$adServerIPAddresses
-#     deployVault=$updateVault
-#     appGroupUserID=$currentUserId
-# }
+Write-Host "Deploying Infrastructure (backplane.bicep) to Resource Group: $avdRGName" -ForegroundColor Green
+$backplaneOutput = New-AzResourceGroupDeployment -Name "Deploy-Backplane" `
+ -ResourceGroupName $avdRGName `
+ -TemplateFile "$PSScriptRoot/../Bicep/Infrastructure/backplane.bicep" `
+ -domainAdminPassword $domainAdminPassword `
+ -localAdminPassword $localAdminPassword `
+ -Verbose `
+ -TemplateParameterObject @{
+    location=$location
+    localEnv=$localEnv
+    uniqueName=$uniqueIdentifier
+    tags=$tags
+    workloadName=$workloadNameAVD
+    rgDiagName=$diagRGName
+    lawName=$diagOutput.Outputs.lawName.Value
+    domainName=$domainName
+    avdVnetCIDR=$avdVnetCIDR
+    avdSnetCIDR=$avdSnetCIDR
+    adServerIPAddresses=$adServerIPAddresses
+    deployVault=$updateVault
+    appGroupUserID=$currentUserId
+}
 
-# if (-not $backplaneOutput.Outputs.hpName.Value) {
-#     Write-Error "ERROR: Failed to deploy BackPlane to Resource Group: $avdRGName"
-#     exit 1
-# }
+if (-not $backplaneOutput.Outputs.hpName.Value) {
+    Write-Error "ERROR: Failed to deploy BackPlane to Resource Group: $avdRGName"
+    exit 1
+}
 
 
 #Change the name of the "SessionDesktop" to be something more helpful (advanced, not required)
@@ -201,14 +194,14 @@ if (-not (Get-AzResourceGroup -Name $diagRGName -ErrorAction SilentlyContinue)) 
 #     Write-Warning "Unable to change the name of the Session Desktop."
 # }
 
-#The next step is to build the hosts and add them to both the AD and the HostPool.  While this could be done in the 
-#backplane.bicep file, it is usually better to pull this into its own deployment.  why?  Because you are highly likley to need
-#to deploy additional hosts at a later date and you dont want to have to redeploy the entire backplane.
+# #The next step is to build the hosts and add them to both the AD and the HostPool.  While this could be done in the 
+# #backplane.bicep file, it is usually better to pull this into its own deployment.  why?  Because you are highly likley to need
+# #to deploy additional hosts at a later date and you dont want to have to redeploy the entire backplane.
 
-#First we need to get the hostpool and generate a new registration token.  This token is required to add the Host to the Pool
-#and is "baked into" the host when it is build though an extension.  The token is only valid for a short period of time, enough
-#to add the host to the pool.  Once in the pool the registration token is no longer required.
-#Minimum is 1 hours, maximum is 30 days.  Typically set around 2 hours (or more if deploying lots of hosts)
+# #First we need to get the hostpool and generate a new registration token.  This token is required to add the Host to the Pool
+# #and is "baked into" the host when it is build though an extension.  The token is only valid for a short period of time, enough
+# #to add the host to the pool.  Once in the pool the registration token is no longer required.
+# #Minimum is 1 hours, maximum is 30 days.  Typically set around 2 hours (or more if deploying lots of hosts)
 # Write-Host "Generating a new hostpool registration token" -ForegroundColor Green
 # $expiryTime = $((Get-Date).ToUniversalTime().AddHours(2).ToString('yyyy-MM-ddTHH:mm:ss.fffffffZ'))
 # $hpToken = (New-AzWvdRegistrationInfo -HostPoolName $backplaneOutput.Outputs.hpName.Value -ResourceGroupName $avdRGName -ExpirationTime $expiryTime).token
@@ -218,7 +211,7 @@ if (-not (Get-AzResourceGroup -Name $diagRGName -ErrorAction SilentlyContinue)) 
 #     exit 1
 # }
 
-#Deploy the hosts and attach them to AADDS and the hostpool
+# #Deploy the hosts and attach them to AADDS and the hostpool
 # Write-Host "Deploying/Updating Hosts (deployHosts.bicep) to Resource Group: $avdRGName" -ForegroundColor Green
 # $buildHostOutput = New-AzResourceGroupDeployment -Name "Deploy-Hosts" `
 #  -ResourceGroupName $avdRGName `
@@ -239,6 +232,9 @@ if (-not (Get-AzResourceGroup -Name $diagRGName -ErrorAction SilentlyContinue)) 
 #     hostPoolToken=$hpToken
 #     subnetID=$backplaneOutput.Outputs.subNetId.Value
 #     keyVaultName=$backplaneOutput.Outputs.keyvaultName.Value
+#     vmSize=$vmHostSize
+#     vmImageObject=$imageToDeploy
+#     storageAccountType=$storageAccountType
 # }
 
 # if (-not $buildHostOutput) {
@@ -246,10 +242,10 @@ if (-not (Get-AzResourceGroup -Name $diagRGName -ErrorAction SilentlyContinue)) 
 #     exit 1
 # }
 
-# Write-Host "Finished Deployment" -ForegroundColor Green
-# Write-Host "---"
-# Write-Host "What next?"
-# Write-Host "1: Make sure you have been added to the Application Group and add any other Users or Groups"
-# Write-Host "2: Check that the hosts appear in the Host Pool"
-# Write-Host "3: Access the AVD environment via the web (https://client.wvd.microsoft.com/arm/webclient/index.html)"
-# Write-Host "---"
+Write-Host "Finished Deployment" -ForegroundColor Green
+Write-Host "---"
+Write-Host "What next?"
+Write-Host "1: Make sure you have been added to the Application Group and add any other Users or Groups"
+Write-Host "2: Check that the hosts appear in the Host Pool"
+Write-Host "3: Access the AVD environment via the web (https://client.wvd.microsoft.com/arm/webclient/index.html)"
+Write-Host "---"
