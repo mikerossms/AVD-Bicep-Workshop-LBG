@@ -91,3 +91,13 @@ The script itself should be well enough commented for it to make sense however f
 If you do forget any of the parameters, dont worry.  The parameters are there to stop you being pestered unnecessarily by the script so if you forget one you may just need to answer some additional questions
 
 NOTE:  You are, of course, more than welcome to hard code the unique identifier and CIDR into the powershell script and remove the "mandatory" tag.
+
+## Getting to your shiny new desktop
+
+You will need to complete the following final steps before trying to log into your new desktop make sure that:
+
+1. Your host has provisioned correctly as is running
+1. Your host appears in your host pool as Running
+1. You have added the user you will be logging in with to "Assignments" in the Application Group
+
+Then open a browser and connect to https://client.wvd.microsoft.com/arm/webclient/index.html

@@ -18,7 +18,7 @@ This will take a while but it will create a new virtual machine with its own dis
 
 Well you do need something to log into don't you...
 
-## Getting to you shiny new desktop
+## Getting to your shiny new desktop
 
 You will need to complete the following final steps before trying to log into your new desktop make sure that:
 
