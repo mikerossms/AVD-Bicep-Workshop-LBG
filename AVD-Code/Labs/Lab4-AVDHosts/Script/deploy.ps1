@@ -37,6 +37,10 @@ if (-not $avdVnetCIDR) {
     exit 1
 }
 
+if ($numberOfHostsToDeploy -gt 2) {
+    Write-Error "Please do not deploy more than 2 hosts."
+    exit 1
+}
 
 #Define the name of both the diagnostic and AVD deployment RG
 $diagRGName = "rg-$workloadNameDiag-$location-$localEnv-$uniqueIdentifier"
