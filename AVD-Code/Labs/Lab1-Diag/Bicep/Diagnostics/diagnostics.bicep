@@ -29,6 +29,7 @@ param location string = 'uksouth'
 ])
 param localEnv string = 'dev' //dev, test, uat, prod
 
+
 //This is an example of a required component.  Note there is no default value so the script will expect it to be passed in
 //This is also limited to a maximum of 6 characters.  Any more an it will cause an error
 @description ('Required: A unique name to define your resource e.g. you name.  Must not have spaces')

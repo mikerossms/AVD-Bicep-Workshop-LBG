@@ -163,19 +163,19 @@ module KeyVault 'keyvault.bicep' = if (deployVault) {
 }
 
 //Deploy the HostPool resource which includes the app group and workspace as well
-// module HostPool 'hostpool.bicep' = {
-//   name: 'HostPool'
-//   params: {
-//     location: location
-//     localEnv: localEnv
-//     uniqueName: uniqueName
-//     workloadName: workloadName
-//     tags: tags
-//     diagnosticWorkspaceId: LAWorkspace.id
-//     domainName: domainName
-//     appGroupUserID: appGroupUserID
-//   }
-// }
+module HostPool 'hostpool.bicep' = {
+  name: 'HostPool'
+  params: {
+    location: location
+    localEnv: localEnv
+    uniqueName: uniqueName
+    workloadName: workloadName
+    tags: tags
+    diagnosticWorkspaceId: LAWorkspace.id
+    domainName: domainName
+    appGroupUserID: appGroupUserID
+  }
+}
 
 //These are examples of outputs.  In this case they return to the calling script for its consumption, but in general they
 //are usually used to pass outputs from bicep modules.

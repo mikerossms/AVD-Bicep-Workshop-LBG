@@ -37,9 +37,9 @@ Set-AzContext -subscriptionName <name of subscription from list above>
 
 #Create a resource group to test abaility to create resources
 #Note: Make your naem unique by adding 3 random letters to the end of the "Name" field
-New-AzResourceGroup -Name avdtest<3 random numbers> -Location uksouth
+New-AzResourceGroup -Name avdtest<unique id> -Location uksouth
 
 #Delete the resource group
-Remove-AzResourceGroup -Name avdtest<3 random numbers>
+Remove-AzResourceGroup -Name avdtest<unique id>
 ```
 

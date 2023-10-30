@@ -7,8 +7,8 @@ targetScope = 'subscription'
 //pip-sharepoint-prod-uksouth-001
 
 //Parameters
-@description('The local environment identifier.  Default: prod')
-param localenv string = 'prod'
+@description('The local environment identifier.  Default: dev')
+param localenv string = 'dev'
 
 @description('Location of the Resources. Default: UK South')
 param location string = 'uksouth'
@@ -17,8 +17,11 @@ param location string = 'uksouth'
 @description('Workload short code (max 4 chars)')
 param workloadNameShort string = 'IB'
 
-@description('Workload short code (max 4 chars)')
+@description('Workload Name')
 param workloadName string = 'ImageBuilder'
+
+@description('Sequence Number')
+param sequenceNum string = '001'
 
 @description('Tags to be applied to all resources')
 param tags object = {
@@ -31,10 +34,10 @@ param tags object = {
 }
 
 @description('The name of the resource group to create for the common image builder components')
-param rgImageName string = toLower('rg-${workloadName}-${localenv}-${location}-001')
+param rgImageName string = toLower('rg-${workloadName}-${localenv}-${location}-${sequenceNum}')
 
 @description('The name of the storage account to create as a software repo for the Image Builder and a place to host its common components')
-param storageRepoName string = toLower('st${workloadNameShort}${localenv}${location}001')  //Storage names are alphanumeric only
+param storageRepoName string = toLower('st${workloadNameShort}${localenv}${location}${sequenceNum}')  //Storage names are alphanumeric only
 
 @description('The name of the container to hold the scripts used to build the Image Builder')
 param containerIBScripts string = 'buildscripts'
@@ -43,7 +46,7 @@ param containerIBScripts string = 'buildscripts'
 param containerIBSoftware string = 'software'
 
 @description('The Name of the compute gallery')
-param computeGalName string = toLower('acg_${workloadName}_${localenv}_${location}_001')   //Compute gallery names limited to alphanumeric, underscores and periods
+param computeGalName string = toLower('acg_${workloadName}_${localenv}_${location}_${sequenceNum}')   //Compute gallery names limited to alphanumeric, underscores and periods
 
 //LAW Resource Group name
 // @description ('The name of the Log Analytics Workspace Resource Group')

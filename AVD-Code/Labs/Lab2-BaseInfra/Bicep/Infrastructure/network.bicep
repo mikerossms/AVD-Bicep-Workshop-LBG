@@ -30,11 +30,11 @@ param workloadName string
 @description('Required: An object (think hash) that contains the tags to apply to all resources.')
 param tags object
 
-// @description('Required: The address prefix (CIDR) for the virtual network.')
-// param vnetCIDR string
+@description('Required: The address prefix (CIDR) for the virtual network.')
+param vnetCIDR string
 
-// @description('Required: The address prefix (CIDR) for the virtual networks AVD subnet.')
-// param snetCIDR string
+@description('Required: The address prefix (CIDR) for the virtual networks AVD subnet.')
+param snetCIDR string
 
 @description('Optional: The ID of the Log Analytics workspace to which you would like to send Diagnostic Logs.')
 param diagnosticWorkspaceId string = ''
@@ -43,20 +43,20 @@ param diagnosticWorkspaceId string = ''
 param diagnosticRetentionInDays int = 30
 
 //Identity Vnet Parameters
-// @description('Optional: The name of the identity vnet to peer to')
-// param identityVnetName string = 'vnet-identity'
+@description('Optional: The name of the identity vnet to peer to')
+param identityVnetName string = 'vnet-identity'
 
-// @description('Optional: The resource group containing the identity vnet to peer to')
-// param identityVnetRG string = 'rg-identity'
+@description('Optional: The resource group containing the identity vnet to peer to')
+param identityVnetRG string = 'rg-identity'
 
-// @description('Required: The IP Address of the AD Server or AADDS Server to use as the DNS server for the VNET')
-// param adServerIPAddresses array
+@description('Required: The IP Address of the AD Server or AADDS Server to use as the DNS server for the VNET')
+param adServerIPAddresses array
 
 //VARIABLES
-// var vnetName = toLower('vnet-${workloadName}-${location}-${localEnv}-${uniqueName}')
-// var snetName = toLower('snet-${workloadName}-${location}-${localEnv}-${uniqueName}')
+var vnetName = toLower('vnet-${workloadName}-${location}-${localEnv}-${uniqueName}')
+var snetName = toLower('snet-${workloadName}-${location}-${localEnv}-${uniqueName}')
 var nsgName = toLower('nsg-${workloadName}-${location}-${localEnv}-${uniqueName}')
-// var nsgAVDRuleName = toLower('AllowRDPInbound')
+var nsgAVDRuleName = toLower('AllowRDPInbound')
 
 //Create the Network Security Group (there is very little to creating one, but it is a good idea to have one for each subnet)
 //Ref: https://learn.microsoft.com/en-gb/azure/templates/microsoft.network/networksecuritygroups?tabs=bicep&pivots=deployment-language-bicep
@@ -89,27 +89,65 @@ resource networkSecurityGroup_diagnosticSettings 'Microsoft.Insights/diagnosticS
 }
 
 //Set up the AVD rule for the NSG
-//Note: AVD does not require RDP access from anywhereelse as the connection is handled by the PaaS service underneath
+//Note: AVD does not require RDP access from anywhere else as the connection is handled by the PaaS service underneath
 //There are other forms of connection available as well, but this is the most common.
 //Ref: https://learn.microsoft.com/en-gb/azure/templates/microsoft.network/networksecuritygroups/securityrules?tabs=bicep&pivots=deployment-language-bicep
-// resource securityRule 'Microsoft.Network/networkSecurityGroups/securityRules@2022-07-01' = {
-//   name: nsgAVDRuleName
-//   parent: networkSecurityGroup
-//   properties: {
-//     //Need to enable port TCP/3389 from the virtualnetwork
-//   }
-// }
+resource securityRule 'Microsoft.Network/networkSecurityGroups/securityRules@2022-07-01' = {
+  name: nsgAVDRuleName
+  parent: networkSecurityGroup
+  properties: {
+    //Need to enable port TCP/3389 from the virtualnetwork
+    access: 'Allow'
+    protocol: 'Tcp'
+    destinationPortRange: '3389'
+    destinationAddressPrefix: vnetCIDR
+    sourceAddressPrefix: 'VirtualNetwork'
+    sourcePortRange: '*'
+    direction: 'Inbound'
+    priority: 100
+  }
+}
 
 //Create the virtual network (vnet) and subnet (snet) objects
 //Note that the SNET will have a set of storage endpoints and keyvault endpoints enabled
 //Ref: VNET: https://learn.microsoft.com/en-gb/azure/templates/microsoft.network/virtualnetworks?tabs=bicep&pivots=deployment-language-bicep
 //Ref: SNET: https://learn.microsoft.com/en-gb/azure/templates/microsoft.network/virtualnetworks/subnets?pivots=deployment-language-bicep
-// resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' = {
-//   name: vnetName
-//   location: location
-//   tags: tags
+resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' = {
+  name: vnetName
+  location: location
+  tags: tags
+  properties: {
+    //Will need to provide address space, dhcpOptions and subnets
+    addressSpace: {
+      addressPrefixes: [
+        vnetCIDR
+      ]
+    }
+    dhcpOptions: {
+      dnsServers: adServerIPAddresses
+    }
+    subnets: [
+      {
+        name: snetName
+        properties: {
+            addressPrefix: snetCIDR
+            networkSecurityGroup: {
+              id: networkSecurityGroup.id
+            }
+        }
+      }
+    ]
+  }
+}
+
+// resource secondSNET 'Microsoft.Network/virtualNetworks/subnets@2022-09-01' = {
+//   name: snetName
+//   parent: virtualNetwork
 //   properties: {
-//     //Will need to provide address space, dhcpOptions and subnets
+//     networkSecurityGroup: {
+//       id: networkSecurityGroup.id
+//     }
+//     addressPrefix: snetCIDR
 //   }
 // }
 
@@ -125,33 +163,39 @@ resource networkSecurityGroup_diagnosticSettings 'Microsoft.Insights/diagnosticS
 
 //So first lets pull in the existing identity vnet
 //Ref: https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/existing-resource 
-// resource identityVnet 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
-//   //Using the Scope, pull in the Identity Vnet defined by parameters identityVnetName and identityVnetRg
-// }
+resource identityVnet 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
+  name: identityVnetName
+  scope: resourceGroup(identityVnetRG)
+}
 
 //So this first resource uses the existing vnet that we created earlier to link to the identity vnet using the vnets resource id
 //No scope is required on this one as it wull run in the scope as everything else we are creating.  We are just going to use
 //the modules defaults for the majority of this
-// module outboundPeering 'moduleRemotePeer.bicep' = {
-//   name: 'outboundPeering'
-//   params: {
-//     connectFromVnetName: virtualNetwork.name
-//     connectToVnetID: identityVnet.id
-//   }
-// }
+module outboundPeering 'moduleRemotePeer.bicep' = {
+  name: 'outboundPeering'
+  params: {
+    connectFromVnetName: virtualNetwork.name
+    connectToVnetID: identityVnet.id
+  }
+}
 
 //So this module does the reverse part of the connection FROM the remote VNET to this local VNET.  In this case it does need to be scoped
 //as we will be working on the REMOTE resource this time.
 //Ref: Scoping: https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/bicep-functions-scope
-// module inboundPeering 'moduleRemotePeer.bicep' = {
-//   //See if you can work out how to do the inbound peering
-// }
+module inboundPeering 'moduleRemotePeer.bicep' = {
+  name: 'inboundPeering'
+  scope: resourceGroup(identityVnetRG)
+  params: {
+    connectFromVnetName: identityVnetName
+    connectToVnetID: virtualNetwork.id
+  }
+}
 
 //OUTPUTS
 //Ref: https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/outputs?tabs=azure-powershell
-// output vnetName string = virtualNetwork.name
-// output vnetID string = virtualNetwork.id
-// output snetName string = virtualNetwork.properties.subnets[0].name
-// output snetID string = virtualNetwork.properties.subnets[0].id
-// output nsgName string = networkSecurityGroup.name
-// output nsgID string = networkSecurityGroup.id
+output vnetName string = virtualNetwork.name
+output vnetID string = virtualNetwork.id
+output snetName string = virtualNetwork.properties.subnets[0].name
+output snetID string = virtualNetwork.properties.subnets[0].id
+output nsgName string = networkSecurityGroup.name
+output nsgID string = networkSecurityGroup.id

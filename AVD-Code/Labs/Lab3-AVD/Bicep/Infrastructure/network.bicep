@@ -174,6 +174,7 @@ resource identityVnet 'Microsoft.Network/virtualNetworks@2022-07-01' existing = 
 //the modules defaults for the majority of this
 module outboundPeering 'moduleRemotePeer.bicep' = {
   name: 'outboundPeering'
+  scope: resourceGroup()
   params: {
     connectFromVnetName: virtualNetwork.name
     connectToVnetID: identityVnet.id

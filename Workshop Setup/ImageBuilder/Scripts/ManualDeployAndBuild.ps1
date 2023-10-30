@@ -10,16 +10,29 @@ param (
     [Parameter(Mandatory)]
     [String]$imageName,
     [String]$subscriptionID,
+    [String]$workloadName = "ImageBuilder",
+    [String]$workloadNameShort = "IB",
+    [String]$location = "uksouth",
+    [String]$localenv = "dev",
+    [String]$sequenceNum = "001",
+    [int]$ibTimeout = 120,
+    [string]$ibVMSize = "Standard_D2s_v3",
     [Bool]$dologin = $true,
-    [Bool]$runBuild = $true
+    [Bool]$runBuild = $true,
+    [bool]$uploadSoftware = $true
+
 )
 
-$location = "uksouth"
-$localenv = "dev"
-$workloadName = "ImageBuilder"
-$workloadNameShort = "IB"
-$ibTimeout = 120
-$ibVMSize = "Standard_D2s_v3"
+#If length of workloadNameShort is greater than 4, then error
+if ($workloadNameShort.Length -gt 4) {
+    Write-Error "Workload Short name is too long - maximum 4 characters"
+    exit 1
+}
+
+if ($workloadNameShort.Length -le 0) {
+    Write-Error "Workload Short name is too short - must be between 1 and 4 characters"
+    exit 1
+}
 
 if ($env::System.JobId) {
     Write-Error "This script should not be run in a pipeline.  It is designed to run manually."
@@ -55,31 +68,39 @@ $common = New-AzSubscriptionDeployment -Name "Common_Components" -Location $loca
     localenv=$localenv
     workloadName=$workloadName
     workloadNameShort=$workloadNameShort
+    sequenceNum=$sequenceNum
 }
 
 $imageBuilderRG = $common.Outputs.imageBuilderRG.Value
 $repoRG = $common.Outputs.storageRepoRG.Value
 $repoName = $common.Outputs.storageRepoName.Value
 $repoContainerScripts = $common.Outputs.storageRepoScriptsContainer.Value
-$repoSoftwareScripts = $common.Outputs.storageRepoSoftwareContainer.Value
+$repoContainerSoftware = $common.Outputs.storageRepoSoftwareContainer.Value
 $acgName = $common.Outputs.acgName.Value
+$umiName = "umi-$workloadName-$localenv-$location-$sequenceNum".ToLower()
 
-&.\Scripts\CreateUMI.ps1 -subscriptionID $subscriptionID -umiLocation $location -umiRG $repoRG
+&.\Scripts\CreateUMI.ps1 -subscriptionID $subscriptionID -umiLocation $location -umiRG $repoRG -umiName $umiName
 &.\Scripts\AssignUMI.ps1 `
     -subscriptionID $subscriptionID `
     -umiRG $repoRG `
+    -umiName $umiName `
     -acgName $acgName `
     -acgRG $repoRG `
     -repoName $repoName `
     -repoRG $repoRG `
     -repoContainerScripts $repoContainerScripts `
-    -repoContainerSoftware $repoSoftwareScripts
+    -repoContainerSoftware $repoContainerSoftware
 
 Write-Host "Cleaning up templates" -ForegroundColor Green
 &.\Scripts\CleanUpTemplates.ps1 -subscriptionID $subscriptionID -imageBuilderRG $imageBuilderRG -imageName $imageName
 
 Write-Host "Uploading build scripts" -ForegroundColor Green
-&.\Scripts\UploadBuildScripts.ps1 -subscriptionID $subscriptionID -repoRG $repoRG -repoName $repoName -repoContainerScripts $repoContainerScripts -imageName $imageName
+&.\Scripts\UploadBuildScripts.ps1 -subscriptionID $subscriptionID -repoRG $repoRG -repoName $repoName -repoContainerScripts $repoContainerScripts -imageName $imageName -runAsPipeline $false
+
+if ($uploadSoftware) {
+    Write-Host "Uploading Software" -ForegroundColor Green
+    &.\Scripts\UploadSoftware.ps1 -subscriptionID $subscriptionID -repoRG $repoRG -repoName $repoName -repoContainerSoftware $repoContainerSoftware -rootFolder "./Images/Common-FilesForSoftwareRepo" -runAsPipeline $false
+}
 
 if ($runBuild) {
     Write-Host "Build Image" -ForegroundColor Green
@@ -96,7 +117,8 @@ if ($runBuild) {
         -location $location `
         -workloadName $workloadName `
         -workloadNameShort $workloadNameShort `
-        -publisher "MikeRoss"
+        -sequenceNum $sequenceNum `
+        -publisher "Quberatron"
 }
 
 

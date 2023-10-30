@@ -119,22 +119,22 @@ resource LAWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' exist
 
 //Deploy the Network resources
 //Note: that we are passing in the LAWWorkspace ID from the resource we pulled in above
-// module Network 'network.bicep' = {
-//   name: 'Network'
-//   params: {
-//     location: location
-//     localEnv: localEnv
-//     uniqueName: uniqueName
-//     workloadName: workloadName
-//     tags: tags
-//     vnetCIDR: avdVnetCIDR
-//     snetCIDR: avdSnetCIDR
-//     diagnosticWorkspaceId: LAWorkspace.id
-//     identityVnetName: identityVnetName
-//     identityVnetRG: identityVnetRG
-//     adServerIPAddresses: adServerIPAddresses
-//   }
-// }
+module Network 'network.bicep' = {
+  name: 'Network'
+  params: {
+    vnetCIDR: avdVnetCIDR
+    location: location
+    localEnv: localEnv
+    uniqueName: uniqueName
+    workloadName: workloadName
+    tags: tags
+    snetCIDR: avdSnetCIDR
+    diagnosticWorkspaceId: LAWorkspace.id
+    identityVnetName: identityVnetName
+    identityVnetRG: identityVnetRG
+    adServerIPAddresses: adServerIPAddresses
+  }
+}
 
 //Deploy a KeyVault - this is required to store the domain admin and local admin password
 //This also stores the two admin passwords that have been passed in as parameters
@@ -142,17 +142,18 @@ resource LAWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' exist
 //So on the first run of the script, or if the admin passwords change.  The reason for this is that we dont want to have
 //to keep passing in the passwords every time we run the script.
 //Ref: https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/conditional-resource-deployment
-// module KeyVault 'keyvault.bicep' = if (deployVault) {
-//   name: 'KeyVault'
-//   params: {
-//     location: location
-//     keyVaultName: keyVaultName
-//     tags: tags
-//     diagnosticWorkspaceId: LAWorkspace.id
-//     domainAdminPassword: domainAdminPassword
-//     localAdminPassword: localAdminPassword
-//   }
-// }
+module KeyVault 'keyvault.bicep' = if (deployVault) {
+  name: 'KeyVault'
+  params: {
+    location: location
+    keyVaultName: keyVaultName
+    tags: tags
+    diagnosticWorkspaceId: LAWorkspace.id
+    domainAdminPassword: domainAdminPassword
+    localAdminPassword: localAdminPassword
+    snetId: Network.outputs.snetID
+  }
+}
 
 //These are examples of outputs.  In this case they return to the calling script for its consumption, but in general they
 //are usually used to pass outputs from bicep modules.

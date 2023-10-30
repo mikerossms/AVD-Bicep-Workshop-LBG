@@ -30,8 +30,8 @@ $imageCommonScriptFolder = ".\Components\ImageBuilderCommonScripts"
 $imageBuildScriptsZipName = "buildscripts.zip"
 
 if (-Not $runAsPipeline) {
-    $imageDepScriptFolder = "..\Images\$imageName"
-    $imageCommonScriptFolder = "..\Components\ImageBuilderCommonScripts"
+    $imageDepScriptFolder = ".\Images\$imageName"
+    $imageCommonScriptFolder = ".\Components\ImageBuilderCommonScripts"
 }
 
 #Check we are in the right subscription

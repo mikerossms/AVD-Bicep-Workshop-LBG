@@ -17,7 +17,7 @@ param workloadNameShort string = 'IB'
 param workloadName string = 'ImageBuilder'
 
 @description('The Publisher name for the Image')
-param publisher string = 'AVDSquad'
+param publisher string = 'Quberatron'
 
 @description('The sequence number of the resource e.g. 001')
 param sequenceNumber string = '001'
@@ -82,7 +82,7 @@ param ibRegionReplication array = [
 ]
 
 @description('The name of the user assigned identity to use for the image builder')
-param ibUMIName string = 'umi-imagebuilder-prod-uksouth-${sequenceNumber}'
+param ibUMIName string = toLower('umi-${workloadName}-${localenv}-${location}-${sequenceNumber}')
 
 @description('The resource group that hosts the UMI required for the image builder')
 param ibUMIRG string = toLower('rg-${workloadName}-${localenv}-${location}-${sequenceNumber}')

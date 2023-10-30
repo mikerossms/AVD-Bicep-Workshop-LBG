@@ -74,23 +74,23 @@ resource KeyVault 'Microsoft.KeyVault/vaults@2022-11-01' existing = {
 //Note that each host is built using a module.  This significently reduces complexity otherwise you would need to wrap a
 //For loop around each of the resources being deployed.  This way you can do it just once:
 //Ref: https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/loops 
-// module Hosts 'moduleHost.bicep' = [for i in range(0, numberOfHostsToDeploy): {
-//   name: 'AVDHost${i}'
-//   params: {
-//     location: location
-//     localEnv: localEnv
-//     uniqueName: uniqueName
-//     workloadName: workloadName
-//     tags: tags
-//     hostNumber: i
-//     adminUserName: localAdminUsername
-//     adminPassword: KeyVault.getSecret('LocalAdminPassword')
-//     domainUsername: domainAdminUsername
-//     domainPassword: KeyVault.getSecret('DomainAdminPassword')
-//     domainOUPath: domainOUPath
-//     domainName: domainName
-//     subnetID: subnetID
-//     hostPoolName: hostPoolName
-//     hostPoolToken: hostPoolToken
-//   }
-// }]
+module Hosts 'moduleHost.bicep' = [for i in range(0, numberOfHostsToDeploy): {
+  name: 'AVDHost${i}'
+  params: {
+    location: location
+    localEnv: localEnv
+    uniqueName: uniqueName
+    workloadName: workloadName
+    tags: tags
+    hostNumber: i
+    adminUserName: localAdminUsername
+    adminPassword: KeyVault.getSecret('LocalAdminPassword')
+    domainUsername: domainAdminUsername
+    domainPassword: KeyVault.getSecret('DomainAdminPassword')
+    domainOUPath: domainOUPath
+    domainName: domainName
+    subnetID: subnetID
+    hostPoolName: hostPoolName
+    hostPoolToken: hostPoolToken
+  }
+}]
