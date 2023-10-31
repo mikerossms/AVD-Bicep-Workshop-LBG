@@ -37,8 +37,22 @@ var fwmpIPName = 'pip-${workloadName}-fwman-${localenv}-${location}-${sequenceNu
 var vnetName = 'vnet-${workloadName}-${localenv}-${location}-${sequenceNum}'
 var fwPolName = 'fwpol-${workloadName}-${localenv}-${location}-${sequenceNum}'
 var fwName = 'firewall-${workloadName}-${localenv}-${location}-${sequenceNum}'
+var bastionName = 'bastion-${workloadName}-${localenv}-${location}-${sequenceNum}'
+var lawName = 'law-${workloadName}-${localenv}-${location}-${sequenceNum}'
+var ipGroupName = 'ipg-lbg-workshop'
+var fwGroupNameNet = 'fwgroup-lbg-workshop-Net'
+var fwGroupNameApp = 'fwgroup-lbg-workshop-App'
 
 
+//Create Log Analytics
+module law '../ImageBuilder/ResourceModules/0.11.0/modules/operational-insights/workspace/main.bicep' = {
+  name: 'law'
+  params: {
+    name: lawName
+    location: location
+    tags: tags
+  }
+}
 
 //Create the public ip address for the firewall
 module FWpublicIpAddress '../ImageBuilder/ResourceModules/0.11.0/modules/network/public-ip-address/main.bicep' = {
@@ -48,6 +62,12 @@ module FWpublicIpAddress '../ImageBuilder/ResourceModules/0.11.0/modules/network
     location: location
     tags: tags
     publicIPAllocationMethod: 'Static'
+    diagnosticSettings: [
+      {
+        name: 'diag-${fwpIPName}'
+        workspaceResourceId: law.outputs.resourceId
+      }
+    ]
   }
 }
 
@@ -59,6 +79,12 @@ module FWMpublicIpAddress '../ImageBuilder/ResourceModules/0.11.0/modules/networ
     location: location
     tags: tags
     publicIPAllocationMethod: 'Static'
+    diagnosticSettings: [
+      {
+        name: 'diag-${fwmpIPName}'
+        workspaceResourceId: law.outputs.resourceId
+      }
+    ]
   }
 }
 
@@ -95,13 +121,19 @@ module vnet '../ImageBuilder/ResourceModules/0.11.0/modules/network/virtual-netw
         privateEndpointNetworkPolicies: 'Disabled'
         privateLinkServiceNetworkPolicies: 'Enabled'
       }
+      {
+        addressPrefix: '10.200.150.128/26'
+        name: 'AzureBastionSubnet'
+        privateEndpointNetworkPolicies: 'Disabled'
+        privateLinkServiceNetworkPolicies: 'Enabled'
+      }
     ]
     peerings: [
       {
         allowForwardedTraffic: true
         allowGatewayTransit: false
         allowVirtualNetworkAccess: true
-        remotePeeringAllowForwardedTraffic: false
+        remotePeeringAllowForwardedTraffic: true
         remotePeeringAllowVirtualNetworkAccess: true
         remotePeeringEnabled: true
         remotePeeringName: 'EntraDS-${workloadName}'
@@ -109,8 +141,40 @@ module vnet '../ImageBuilder/ResourceModules/0.11.0/modules/network/virtual-netw
         useRemoteGateways: false
       }
     ]
+    diagnosticSettings: [
+      {
+        name: 'diag-${vnetName}'
+        workspaceResourceId: law.outputs.resourceId
+      }
+    ]
   }
 }
+
+//Add an IP Group - covers all the IP addresses used in the workshop
+module ipGroup '../ImageBuilder/ResourceModules/0.11.0/modules/network/ip-group/main.bicep' = {
+  name: 'ipGroup'
+  params: {
+    name: ipGroupName
+    location: location
+    tags: tags
+    ipAddresses: [
+      '10.140.0.0/24'
+      '10.140.1.0/24'
+      '10.140.2.0/24'
+      '10.140.3.0/24'
+      '10.140.4.0/24'
+      '10.140.5.0/24'
+      '10.140.6.0/24'
+      '10.140.7.0/24'
+      '10.140.8.0/24'
+      '10.140.9.0/24'
+      '10.140.10.0/24'
+      '10.140.11.0/24'
+      '10.140.12.0/24'
+    ]
+  }
+}
+
 
 //Create the firewall policy - module preferred but does not support basic tier
 resource firewallPolicy 'Microsoft.Network/firewallPolicies@2022-01-01'= {
@@ -125,7 +189,86 @@ resource firewallPolicy 'Microsoft.Network/firewallPolicies@2022-01-01'= {
   }
 }
 
-//Create the basic firewall
+//Create a rule group
+//include rules to route traffic from ip group to Entra DS
+resource ruleCollectionGroup 'Microsoft.Network/firewallPolicies/ruleCollectionGroups@2023-04-01' = {
+  name: 'DefaultNetworkRuleCollectionGroup'
+  parent: firewallPolicy
+  properties: {
+    priority: 100
+    ruleCollections: [
+      {
+        name: 'LBG-Spokes'
+        ruleCollectionType: 'FirewallPolicyFilterRuleCollection'
+        priority: 100
+        action: {
+          type: 'Allow'
+        }
+        rules: [
+          {
+            ruleType: 'NetworkRule'
+            name: 'Spokes-to-EntraDS'
+            ipProtocols: [
+              'Any'
+            ]
+            sourceAddresses: []
+            sourceIpGroups: [
+              ipGroup.outputs.resourceId
+            ]
+            destinationAddresses: [
+              '10.99.99.0/24'
+            ]
+            destinationPorts: [
+              '*'
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+
+resource ruleCollectionGroupApps 'Microsoft.Network/firewallPolicies/ruleCollectionGroups@2023-04-01' = {
+  name: 'DefaultApplicationRuleCollectionGroup'
+  parent: firewallPolicy
+  properties: {
+    priority: 300
+    ruleCollections: [
+      {
+        name: 'InternetTraffic'
+        ruleCollectionType: 'FirewallPolicyFilterRuleCollection'
+        action: {
+          type: 'Allow'
+        }
+        rules: [
+          {
+            ruleType: 'ApplicationRule'
+            name: 'AllWebOut'
+            protocols: [
+              {
+                protocolType: 'Http'
+                port: 80
+              }
+              {
+                protocolType: 'Https'
+                port: 443
+              }
+            ]
+            targetFqdns: [
+              '*'
+            ]
+            sourceIpGroups: [
+              ipGroup.outputs.resourceId
+            ]
+          }
+        ]
+        priority: 100
+      }
+    ]
+  }
+}
+
+//Create the basic firewall and associate policy
 module firewall '../ImageBuilder/ResourceModules/0.11.0/modules/network/azure-firewall/main.bicep' = {
   name: 'firewall'
   params: {
@@ -136,9 +279,33 @@ module firewall '../ImageBuilder/ResourceModules/0.11.0/modules/network/azure-fi
     managementIPResourceID: FWMpublicIpAddress.outputs.resourceId
     publicIPResourceID: FWpublicIpAddress.outputs.resourceId
     vNetId: vnet.outputs.resourceId
-    //firewallPolicyId: firewallPolicy.outputs.resourceId
     firewallPolicyId: firewallPolicy.id
+    diagnosticSettings: [
+      {
+        name: 'diag-${fwName}'
+        workspaceResourceId: law.outputs.resourceId
+      }
+    ]
   }
 }
 
-//Assign DNS
+
+//Add a Bastion (basic)
+module bastionHost '../ImageBuilder/ResourceModules/0.11.0/modules/network/bastion-host/main.bicep' = {
+  name: 'bastionHost'
+  params: {
+    name: bastionName
+    location: location
+    tags: tags
+    vNetId: vnet.outputs.resourceId
+    skuName: 'Basic'
+    diagnosticSettings: [
+      {
+        name: 'diag-${bastionName}'
+        workspaceResourceId: law.outputs.resourceId
+      }
+    ]
+  }
+  
+}
+

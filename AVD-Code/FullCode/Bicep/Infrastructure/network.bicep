@@ -54,8 +54,6 @@ param adServerIPAddresses array
 
 @description('The IP address of the HUB firewall to route traffic through')
 param firewallIP string = '10.200.150.4'
-@description('The IP address of the Entra Domain Services vNet or AD Vnet to route traffic to via the hub')
-param entraDSPrefix string = '10.99.99.0/24'
 
 //VARIABLES
 var vnetName = toLower('vnet-${workloadName}-${location}-${localEnv}-${uniqueName}')
@@ -116,8 +114,8 @@ resource securityRule 'Microsoft.Network/networkSecurityGroups/securityRules@202
 }
 
 //Add a route table to route traffic to the hub vnet
-//rule 0.0.0.0/0 use the firewall as the next hop to the internet
-//rule: 10.99.0.0/24 use the firewall as the router to the Entra DS
+//rule 0.0.0.0/0 route all traffic not related to this vnet to the Azure Firewall in the hub to onward route accordingly.
+//this is required to access the Entra domain Services vnet, bastion services and each others vnets.
 
 //Create the route table
 //REF: https://learn.microsoft.com/en-gb/azure/templates/microsoft.network/routetables?pivots=deployment-language-bicep
@@ -129,15 +127,7 @@ resource routeTable 'Microsoft.Network/routeTables@2023-04-01' = {
     disableBgpRoutePropagation: false
     routes: [
       {
-        name: 'EntraDS'
-        properties: {
-          addressPrefix: entraDSPrefix
-          nextHopIpAddress: firewallIP
-          nextHopType: 'VirtualAppliance'
-        }
-      }
-      {
-        name: 'Internet'
+        name: 'AllTraffic'
         properties: {
           addressPrefix: '0.0.0.0/0'
           nextHopIpAddress: firewallIP

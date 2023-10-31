@@ -57,7 +57,7 @@ Write-Host "Deploying the workshop AVD" -ForegroundColor Green
     -workloadNameDiag "diag" `
     -avdVnetCIDR "10.140.0.0/24" `
     -vmHostSize "Standard_E4as_v5" `
-    -numberOfHostsToDeploy 1 `
+    -numberOfHostsToDeploy 4 `
     -imageToDeploy $imageObject `
     -storageAccountType 'Premium_LRS' `
     -dologin $dologin `
