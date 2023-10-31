@@ -30,10 +30,12 @@ if ((Get-AzContext).Subscription.Id -ne $subID) {
 }
 
 
-$acgName = "acg_imagebuilder_dev_uksouth_001"
+$acgName = "acg_lbgimagebuilder_dev_uksouth_001"
 $imageName = "LBG"
-$imageRg = "rg-imagebuilder-dev-uksouth-001"
+$imageRg = "rg-lbgimagebuilder-dev-uksouth-001"
 $scalerRg = "rg-avd-uksouth-dev-wshop"
+
+
 
 #Get the ACG image ID
 #Get-AzImage -ResourceGroupName $imageRG -ImageName $imageName
@@ -53,14 +55,15 @@ Write-Host "Deploying the workshop AVD" -ForegroundColor Green
     -subID $subID `
     -workloadNameAVD "avd" `
     -workloadNameDiag "diag" `
-    -avdVnetCIDR "10.200.0.0/24" `
+    -avdVnetCIDR "10.140.0.0/24" `
     -vmHostSize "Standard_E4as_v5" `
-    -numberOfHostsToDeploy 4 `
+    -numberOfHostsToDeploy 1 `
     -imageToDeploy $imageObject `
     -storageAccountType 'Premium_LRS' `
-    -dologin $false `
-    -updateVault $false
+    -dologin $dologin `
+    -updateVault $true
 
+    exit
 #Update the scaling plan
 Write-Host "Updating the scaling plan" -ForegroundColor Green
 New-AzResourceGroupDeployment `

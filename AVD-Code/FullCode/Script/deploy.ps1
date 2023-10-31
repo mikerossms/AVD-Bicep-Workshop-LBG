@@ -19,12 +19,13 @@ param (
     [String]$subID = "152aa2a3-2d82-4724-b4d5-639edab485af",
     [String]$workloadNameAVD = "avd",
     [String]$workloadNameDiag = "diag",
-    [String]$avdVnetCIDR = "10.200.1.0/24",
+    [String]$avdVnetCIDR = "10.140.0.0/24",
     [String]$vmHostSize = "Standard_D2s_v3",
     [String]$storageAccountType = "StandardSSD_LRS",
     [Int]$numberOfHostsToDeploy = 1,
     [Object]$imageToDeploy = @{},
     [Bool]$dologin = $true,
+    [Bool]$useCentralVMJoinerPwd = $true,
     [Bool]$updateVault = $true
 )
 
@@ -34,14 +35,20 @@ if (-not $uniqueIdentifier) {
 }
 
 #Define the name of both the diagnostic and AVD deployment RG
-$diagRGName = "rg-$workloadNameDiag-$location-$localEnv-$uniqueIdentifier"
 $avdRGName = "rg-$workloadNameAVD-$location-$localEnv-$uniqueIdentifier"
+$diagRGName = "rg-$workloadNameDiag-$location-$localEnv-$uniqueIdentifier"
 
 #Leave these settings as they are - they set up the connection and access to the domain.
 $domainName = "quberatron.com"
 $domainAdminUsername = "vmjoiner@$domainName"
-$domainOUPath = "OU=LBGAVD,DC=quberatron,DC=com"
+$domainOUPath = "OU=AADDC Computers,DC=quberatron,DC=com"
 $localAdminUsername = "localadmin"
+
+#Keyvault and secret location for the VM Joiner Password
+$domainKeyVaultName = "kv-entrads"
+#$domainKeyVaultRG = "RG-EntraDomainServices"
+#$domainKeyVaultSub = "ea66f27b-e8f6-4082-8dad-006a4e82fcf2"
+$domainVMJoinerSecretKey = "domainjoiner"
 
 #Configure the domain and local admin passwords
 #Note: Setting them to a string is required as we are passing in a secure() string to the bicep code and it must be converted to a secure string in powershell
@@ -49,25 +56,14 @@ $localAdminUsername = "localadmin"
 $domainAdminPassword = ConvertTo-SecureString -String 'noupdate' -AsPlainText -Force
 $localAdminPassword = ConvertTo-SecureString -String 'noupdate' -AsPlainText -Force
 
-#while we have created placeholders above for the admin passwords, this next code provides a means to actually get the real passwords and add them to the keyvault
-#Get the new admin passwords and update/create the vault if required otherwise skip this.
-if ($updateVault) {
-    Write-Warning "They KeyVault and its admin passwords will be updated (or created if they don't exist)"
-    Write-Warning 'If you dont want to do this, press Ctrl+C twice, add "-updateVault $false" to the script parameters and run again'
-    $domainAdminPassword = Read-Host -Prompt "Enter the password for the Domain VMJoiner account" -AsSecureString
-    $localAdminPassword = Read-Host -Prompt "Enter the Local Admin password to use on each host" -AsSecureString
-} else {
-    Write-Warning "Password setting skipped - using existing values in keyvault.  Vault will not be updated"
-}
-
 #Configure the networking for this instance of AVD.
 #$avdVnetCIDR = "10.200.1.0/24" - now set in the parameters
 $avdSnetCIDR = $avdVnetCIDR
 
-#Configure the DNS servers to use for this service - These are static and point to the already deployed AADDS, so will not need to change
+#Configure the DNS servers to use for this service - These are static and point to the already deployed Entra DS, so will not need to change
 $adServerIPAddresses = @(
-  '10.240.0.5'
-  '10.240.0.6'
+  '10.99.99.4'
+  '10.99.99.5'
 )
 
 #Set up some basic tags to attach to resources
@@ -97,7 +93,31 @@ if ((Get-AzContext).Subscription.Id -ne $subID) {
     }
 
     Write-Host "Changed context to subscription: $subID" -ForegroundColor Green
+} 
+
+#while we have created placeholders above for the admin passwords, this next code provides a means to actually get the real passwords and add them to the keyvault
+#Get the new admin passwords and update/create the vault if required otherwise skip this.
+if ($updateVault) {
+    Write-Warning "They KeyVault and its admin passwords will be updated (or created if they don't exist)"
+    Write-Warning 'If you dont want to do this, press Ctrl+C twice, add "-updateVault $false" to the script parameters and run again'
+    if ($useCentralVMJoinerPwd) {
+        Write-Host "Getting the VMJoiner password from the Central Entra DS vault"
+        #Get the secret from the Azure central Entra AD Keyvault
+        $domainVMJoinerSecret = Get-AzKeyVaultSecret -VaultName $domainKeyVaultName -Name $domainVMJoinerSecretKey -AsPlainText -ErrorAction SilentlyContinue
+        if (-not $domainVMJoinerSecret) {
+            Write-Error "ERROR: Unable to get the VMJoiner password from the central Entra DS KeyVault"
+            exit 1
+        }
+        $domainAdminPassword = ConvertTo-SecureString -String $domainVMJoinerSecret -AsPlainText -Force
+    
+    } else {
+        $domainAdminPassword = Read-Host -Prompt "Enter the password for the Domain VMJoiner account" -AsSecureString
+    }
+    $localAdminPassword = Read-Host -Prompt "Enter the Local Admin password to use on each host" -AsSecureString
+} else {
+    Write-Warning "Password setting skipped - using existing values in keyvault.  Vault will not be updated"
 }
+
 
 #Create a resource group for the diagnostic resources if it does not already exist then check it has been created successfully
 if (-not (Get-AzResourceGroup -Name $diagRGName -ErrorAction SilentlyContinue)) {

@@ -39,24 +39,31 @@ param snetCIDR string
 @description('Optional: The ID of the Log Analytics workspace to which you would like to send Diagnostic Logs.')
 param diagnosticWorkspaceId string = ''
 
-@description('Optional: Log retention policy - number of days to keep the logs.')
-param diagnosticRetentionInDays int = 30
+// @description('Optional: Log retention policy - number of days to keep the logs.')
+// param diagnosticRetentionInDays int = 30
 
 //Identity Vnet Parameters
 @description('Optional: The name of the identity vnet to peer to')
-param identityVnetName string = 'vnet-identity'
+param identityVnetName string = 'vnet-LBGCentralHub-dev-uksouth-001'
 
 @description('Optional: The resource group containing the identity vnet to peer to')
-param identityVnetRG string = 'rg-identity'
+param identityVnetRG string = 'rg-lbgcentralhub-dev-uksouth-001'
 
 @description('Required: The IP Address of the AD Server or AADDS Server to use as the DNS server for the VNET')
 param adServerIPAddresses array
+
+@description('The IP address of the HUB firewall to route traffic through')
+param firewallIP string = '10.200.150.4'
+@description('The IP address of the Entra Domain Services vNet or AD Vnet to route traffic to via the hub')
+param entraDSPrefix string = '10.99.99.0/24'
 
 //VARIABLES
 var vnetName = toLower('vnet-${workloadName}-${location}-${localEnv}-${uniqueName}')
 var snetName = toLower('snet-${workloadName}-${location}-${localEnv}-${uniqueName}')
 var nsgName = toLower('nsg-${workloadName}-${location}-${localEnv}-${uniqueName}')
 var nsgAVDRuleName = toLower('AllowRDPInbound')
+var rtName = toLower('rt-${workloadName}-${location}-${localEnv}-${uniqueName}')
+
 
 //Create the Network Security Group (there is very little to creating one, but it is a good idea to have one for each subnet)
 //Ref: https://learn.microsoft.com/en-gb/azure/templates/microsoft.network/networksecuritygroups?tabs=bicep&pivots=deployment-language-bicep
@@ -79,10 +86,10 @@ resource networkSecurityGroup_diagnosticSettings 'Microsoft.Insights/diagnosticS
       {
         categoryGroup: 'allLogs'
         enabled: true
-        retentionPolicy: {
-          enabled: true
-          days: diagnosticRetentionInDays
-        }
+        // retentionPolicy: {
+        //   enabled: true
+        //   days: diagnosticRetentionInDays
+        // }
       }
     ]
   }
@@ -105,6 +112,39 @@ resource securityRule 'Microsoft.Network/networkSecurityGroups/securityRules@202
     sourcePortRange: '*'
     destinationAddressPrefix: '*'
     destinationPortRange: '3389'
+  }
+}
+
+//Add a route table to route traffic to the hub vnet
+//rule 0.0.0.0/0 use the firewall as the next hop to the internet
+//rule: 10.99.0.0/24 use the firewall as the router to the Entra DS
+
+//Create the route table
+//REF: https://learn.microsoft.com/en-gb/azure/templates/microsoft.network/routetables?pivots=deployment-language-bicep
+resource routeTable 'Microsoft.Network/routeTables@2023-04-01' = {
+  name: rtName
+  location: location
+  tags: tags
+  properties: {
+    disableBgpRoutePropagation: false
+    routes: [
+      {
+        name: 'EntraDS'
+        properties: {
+          addressPrefix: entraDSPrefix
+          nextHopIpAddress: firewallIP
+          nextHopType: 'VirtualAppliance'
+        }
+      }
+      {
+        name: 'Internet'
+        properties: {
+          addressPrefix: '0.0.0.0/0'
+          nextHopIpAddress: firewallIP
+          nextHopType: 'VirtualAppliance'
+        }
+      }
+    ]
   }
 }
 
@@ -133,6 +173,9 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' = {
           networkSecurityGroup: {
             id: networkSecurityGroup.id
           }
+          routeTable: {
+            id: routeTable.id
+          }
         }
       }]
   }
@@ -149,10 +192,10 @@ resource virtualNetwork_diagnosticSettings 'Microsoft.Insights/diagnosticSetting
       {
         categoryGroup: 'allLogs'
         enabled: true
-        retentionPolicy: {
-          enabled: true
-          days: diagnosticRetentionInDays
-        }
+        // retentionPolicy: {
+        //   enabled: true
+        //   days: diagnosticRetentionInDays
+        // }
       }
     ]
   }
