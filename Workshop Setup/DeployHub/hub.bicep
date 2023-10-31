@@ -34,14 +34,13 @@ param tags object = {
 
 var fwpIPName = 'pip-${workloadName}-fw-${localenv}-${location}-${sequenceNum}'
 var fwmpIPName = 'pip-${workloadName}-fwman-${localenv}-${location}-${sequenceNum}'
+var bastionIPName = 'pip-${workloadName}-${localenv}-${location}-${sequenceNum}'
 var vnetName = 'vnet-${workloadName}-${localenv}-${location}-${sequenceNum}'
 var fwPolName = 'fwpol-${workloadName}-${localenv}-${location}-${sequenceNum}'
 var fwName = 'firewall-${workloadName}-${localenv}-${location}-${sequenceNum}'
 var bastionName = 'bastion-${workloadName}-${localenv}-${location}-${sequenceNum}'
 var lawName = 'law-${workloadName}-${localenv}-${location}-${sequenceNum}'
 var ipGroupName = 'ipg-lbg-workshop'
-var fwGroupNameNet = 'fwgroup-lbg-workshop-Net'
-var fwGroupNameApp = 'fwgroup-lbg-workshop-App'
 
 
 //Create Log Analytics
@@ -87,6 +86,24 @@ module FWMpublicIpAddress '../ImageBuilder/ResourceModules/0.11.0/modules/networ
     ]
   }
 }
+
+//Create the public ip address for the Bastion
+module BastionPublicIpAddress '../ImageBuilder/ResourceModules/0.11.0/modules/network/public-ip-address/main.bicep' = {
+  name: 'BastionPublicIpAddress'
+  params: {
+    name: bastionIPName
+    location: location
+    tags: tags
+    publicIPAllocationMethod: 'Static'
+    diagnosticSettings: [
+      {
+        name: 'diag-${fwmpIPName}'
+        workspaceResourceId: law.outputs.resourceId
+      }
+    ]
+  }
+}
+
 
 //Get the Entra DS Vnet (PROD Sub)
 resource vnetEntraDS 'Microsoft.Network/virtualNetworks@2023-05-01' existing = {
@@ -266,6 +283,9 @@ resource ruleCollectionGroupApps 'Microsoft.Network/firewallPolicies/ruleCollect
       }
     ]
   }
+  dependsOn: [
+    ruleCollectionGroup
+  ]
 }
 
 //Create the basic firewall and associate policy
@@ -305,6 +325,7 @@ module bastionHost '../ImageBuilder/ResourceModules/0.11.0/modules/network/basti
         workspaceResourceId: law.outputs.resourceId
       }
     ]
+    bastionSubnetPublicIpResourceId: BastionPublicIpAddress.outputs.resourceId
   }
   
 }
