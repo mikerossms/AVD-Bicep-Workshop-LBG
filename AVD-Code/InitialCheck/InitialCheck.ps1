@@ -5,6 +5,7 @@ Just checks to make sure the necessary components are installed
 param (
     [Parameter(Mandatory)]
     [String]$username,
+    [String]$location='uksouth'
     [String]$subID = "152aa2a3-2d82-4724-b4d5-639edab485af"
 )
 
