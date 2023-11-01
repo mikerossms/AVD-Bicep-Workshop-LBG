@@ -70,7 +70,7 @@ resource RGImages 'Microsoft.Resources/resourceGroups@2022-09-01' = {
 // }
 
 //Create the storage account required for the script which will build the ADDS server
-module RepoStorage '../ResourceModules/0.9.0/modules/Microsoft.Storage/storageAccounts/deploy.bicep' = {
+module RepoStorage '../../ResourceModules/0.9.0/modules/Microsoft.Storage/storageAccounts/deploy.bicep' = {
   name: 'RepoStorage'
   scope: RGImages
   params: {
@@ -99,7 +99,7 @@ module RepoStorage '../ResourceModules/0.9.0/modules/Microsoft.Storage/storageAc
 }
 
 //Build the Compute Gallery
-module galleries '../ResourceModules/0.9.0/modules/Microsoft.Compute/galleries/deploy.bicep' = {
+module galleries '../../ResourceModules/0.9.0/modules/Microsoft.Compute/galleries/deploy.bicep' = {
   name: computeGalName
   scope: RGImages
   params: {

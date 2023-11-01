@@ -46,7 +46,7 @@ var ipGroupName = 'ipg-lbg-workshop'
 var storageName = toLower('st${workloadName}${localenv}${sequenceNum}')
 
 //Create Log Analytics
-module law '../ImageBuilder/ResourceModules/0.11.0/modules/operational-insights/workspace/main.bicep' = {
+module law '../ResourceModules/0.11.0/modules/operational-insights/workspace/main.bicep' = {
   name: 'law'
   params: {
     name: lawName
@@ -57,7 +57,7 @@ module law '../ImageBuilder/ResourceModules/0.11.0/modules/operational-insights/
 
 //Add Azure Storage account and File Share for FSLogix
 //configure the roleAssignments for users to be able to access this storage account from their AVD desktop
-module storage '../ImageBuilder/ResourceModules/0.11.0/modules/storage/storage-account/main.bicep' = {
+module storage '../ResourceModules/0.11.0/modules/storage/storage-account/main.bicep' = {
   name: 'storage'
   params: {
     name: storageName
@@ -112,7 +112,7 @@ module storage '../ImageBuilder/ResourceModules/0.11.0/modules/storage/storage-a
 
 
 //Create the public ip address for the firewall
-module FWpublicIpAddress '../ImageBuilder/ResourceModules/0.11.0/modules/network/public-ip-address/main.bicep' = {
+module FWpublicIpAddress '../ResourceModules/0.11.0/modules/network/public-ip-address/main.bicep' = {
   name: 'FWpublicIpAddress'
   params: {
     name: fwpIPName
@@ -129,7 +129,7 @@ module FWpublicIpAddress '../ImageBuilder/ResourceModules/0.11.0/modules/network
 }
 
 //Create the public ip address for the firewall management
-module FWMpublicIpAddress '../ImageBuilder/ResourceModules/0.11.0/modules/network/public-ip-address/main.bicep' = {
+module FWMpublicIpAddress '../ResourceModules/0.11.0/modules/network/public-ip-address/main.bicep' = {
   name: 'FWMpublicIpAddress'
   params: {
     name: fwmpIPName
@@ -146,7 +146,7 @@ module FWMpublicIpAddress '../ImageBuilder/ResourceModules/0.11.0/modules/networ
 }
 
 //Create the public ip address for the Bastion
-module BastionPublicIpAddress '../ImageBuilder/ResourceModules/0.11.0/modules/network/public-ip-address/main.bicep' = {
+module BastionPublicIpAddress '../ResourceModules/0.11.0/modules/network/public-ip-address/main.bicep' = {
   name: 'BastionPublicIpAddress'
   params: {
     name: bastionIPName
@@ -170,7 +170,7 @@ resource vnetEntraDS 'Microsoft.Network/virtualNetworks@2023-05-01' existing = {
 }
 
 //Create the central hub vnet
-module vnet '../ImageBuilder/ResourceModules/0.11.0/modules/network/virtual-network/main.bicep' = {
+module vnet '../ResourceModules/0.11.0/modules/network/virtual-network/main.bicep' = {
   name: 'vnet'
   params: {
     name: vnetName
@@ -226,7 +226,7 @@ module vnet '../ImageBuilder/ResourceModules/0.11.0/modules/network/virtual-netw
 }
 
 //Add an IP Group - covers all the IP addresses used in the workshop
-module ipGroup '../ImageBuilder/ResourceModules/0.11.0/modules/network/ip-group/main.bicep' = {
+module ipGroup '../ResourceModules/0.11.0/modules/network/ip-group/main.bicep' = {
   name: 'ipGroup'
   params: {
     name: ipGroupName
@@ -346,7 +346,7 @@ resource ruleCollectionGroupApps 'Microsoft.Network/firewallPolicies/ruleCollect
 }
 
 //Create the basic firewall and associate policy
-module firewall '../ImageBuilder/ResourceModules/0.11.0/modules/network/azure-firewall/main.bicep' = {
+module firewall '../ResourceModules/0.11.0/modules/network/azure-firewall/main.bicep' = {
   name: 'firewall'
   params: {
     name: fwName
@@ -368,7 +368,7 @@ module firewall '../ImageBuilder/ResourceModules/0.11.0/modules/network/azure-fi
 
 
 //Add a Bastion (basic)
-module bastionHost '../ImageBuilder/ResourceModules/0.11.0/modules/network/bastion-host/main.bicep' = {
+module bastionHost '../ResourceModules/0.11.0/modules/network/bastion-host/main.bicep' = {
   name: 'bastionHost'
   params: {
     name: bastionName

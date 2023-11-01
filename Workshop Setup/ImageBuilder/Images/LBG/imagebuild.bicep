@@ -162,7 +162,7 @@ resource storageRepo 'Microsoft.Storage/storageAccounts@2022-09-01' existing = {
 }
 
 //Create a Gallery Definition
-module imageDefinition '../../ResourceModules/0.9.0/modules/Microsoft.Compute/galleries/images/deploy.bicep' = {
+module imageDefinition '../../../ResourceModules/0.9.0/modules/Microsoft.Compute/galleries/images/deploy.bicep' = {
   name: 'imageDefinition'
   scope: CGImageRG
   params: {
@@ -184,7 +184,7 @@ module imageDefinition '../../ResourceModules/0.9.0/modules/Microsoft.Compute/ga
 }
 
 //Create the Image template
-module imageTemplate '../../ResourceModules/0.9.0/modules/Microsoft.VirtualMachineImages/imageTemplates/deploy.bicep' = {
+module imageTemplate '../../../ResourceModules/0.9.0/modules/Microsoft.VirtualMachineImages/imageTemplates/deploy.bicep' = {
   name: 'imageTemplate'
   scope: CGImageRG
 
