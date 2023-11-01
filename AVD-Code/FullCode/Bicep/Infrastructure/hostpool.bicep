@@ -105,6 +105,7 @@ resource hostPool 'Microsoft.DesktopVirtualization/hostPools@2022-09-09' = {
     maxSessionLimit: maxUsersPerHost
     loadBalancerType: loadBalancerType
     validationEnvironment: false
+    customRdpProperty: 'drivestoredirect:s:;audiomode:i:0;videoplaybackmode:i:1;redirectclipboard:i:1;redirectprinters:i:1;devicestoredirect:s:*;redirectcomports:i:1;redirectsmartcards:i:0;usbdevicestoredirect:s:*;enablecredsspsupport:i:1;redirectwebauthn:i:1;use multimon:i:0;smart sizing:i:1;dynamic resolution:i:1;autoreconnection enabled:i:1;bandwidthautodetect:i:1;networkautodetect:i:1;compression:i:1'
     registrationInfo: {
       expirationTime: tokenExpirationTime
       token: null

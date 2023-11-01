@@ -25,6 +25,7 @@ param (
     [Int]$numberOfHostsToDeploy = 1,
     [Object]$imageToDeploy = @{},
     [String]$domainOUPath = "OU=AADDC Computers,DC=quberatron,DC=com",
+    [String]$AppGroupSessionDesktopName = "Desktop-$workloadNameAVD",
     [Bool]$dologin = $true,
     [Bool]$useCentralVMJoinerPwd = $true,
     [Bool]$updateVault = $true
@@ -262,6 +263,16 @@ if (-not $buildHostOutput) {
     exit 1
 }
 
+#change the name of the display desktop under the AVD application group to $AppGroupSessionDesktopName
+Write-Host "Changing the name of the Application Group Session Desktop to $AppGroupSessionDesktopName" -foregroundColor Green
+$desktop = Get-AzWvdDesktop -ResourceGroupName $avdRGName -ApplicationGroupName $backplaneOutput.Outputs.hostPoolAppGroupName.Value -Name 'SessionDesktop'
+if (-not $desktop) {
+    Write-Error "ERROR: Unable to get the Session Desktop"
+} else {
+    Update-AzWvdDesktop -ResourceGroupName $avdRGName -ApplicationGroupName $backplaneOutput.Outputs.hostPoolAppGroupName.Value -Name 'SessionDesktop' -FriendlyName $AppGroupSessionDesktopName
+}
+
+#finished
 Write-Host "Finished Deployment" -ForegroundColor Green
 Write-Host "---"
 Write-Host "What next?"

@@ -68,8 +68,22 @@ module storage '../ImageBuilder/ResourceModules/0.11.0/modules/storage/storage-a
     fileServices: {
       shares: [
         {
-          accessTier: 'Premium'
+          accessTier: 'hot'
           name: 'fslogix'
+          enabledProtocols: [
+            'SMB'
+          ]
+          roleAssignments: [
+            {
+              principalId: fsLogixUserGroupAssignmentID
+              principalType: 'Group'
+              roleDefinitionIdorName: 'Storage File Data SMB Share Contributor'
+            }
+          ]
+        }
+        {
+          accessTier: 'hot'
+          name: 'classroom'
           enabledProtocols: [
             'SMB'
           ]

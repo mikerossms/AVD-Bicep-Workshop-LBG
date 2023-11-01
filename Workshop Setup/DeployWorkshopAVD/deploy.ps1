@@ -61,6 +61,7 @@ Write-Host "Deploying the workshop AVD" -ForegroundColor Green
     -imageToDeploy $imageObject `
     -storageAccountType 'Premium_LRS' `
     -domainOUPath 'OU=LBG,DC=quberatron,DC=com' `
+    -AppGroupSessionDesktopName 'LBG Hub Desktop' `
     -dologin $dologin `
     -updateVault $true
 
