@@ -68,4 +68,16 @@ if (-not $groupUser) {
     exit 1
 }
 
+#Create the resource group name from the username
+$rg = "rg-lbg-$username"
+
+#Create the resource group if it does not already exist
+if (-not (Get-AzResourceGroup -Name $rg -ErrorAction SilentlyContinue)) {
+    Write-Host "Creating Resource Group: $rg" -ForegroundColor Green
+    if (-not (New-AzResourceGroup -Name $rg -Location $location)) {
+        Write-Error "ERROR: Cannot create Resource Group: $rg"
+        exit 1
+    }
+}
+
 Write-Host "Checks and initial login complete" -ForegroundColor Green
