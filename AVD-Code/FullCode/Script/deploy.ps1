@@ -24,6 +24,7 @@ param (
     [String]$storageAccountType = "StandardSSD_LRS",
     [Int]$numberOfHostsToDeploy = 1,
     [Object]$imageToDeploy = @{},
+    [String]$domainOUPath = "OU=AADDC Computers,DC=quberatron,DC=com",
     [Bool]$dologin = $true,
     [Bool]$useCentralVMJoinerPwd = $true,
     [Bool]$updateVault = $true
@@ -41,7 +42,6 @@ $diagRGName = "rg-$workloadNameDiag-$location-$localEnv-$uniqueIdentifier"
 #Leave these settings as they are - they set up the connection and access to the domain.
 $domainName = "quberatron.com"
 $domainAdminUsername = "vmjoiner@$domainName"
-$domainOUPath = "OU=AADDC Computers,DC=quberatron,DC=com"
 $localAdminUsername = "localadmin"
 
 #Keyvault and secret location for the VM Joiner Password

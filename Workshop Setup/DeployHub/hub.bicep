@@ -32,6 +32,8 @@ param tags object = {
   DataClassification: 'general'
 }
 
+param fsLogixUserGroupAssignmentID string
+
 var fwpIPName = 'pip-${workloadName}-fw-${localenv}-${location}-${sequenceNum}'
 var fwmpIPName = 'pip-${workloadName}-fwman-${localenv}-${location}-${sequenceNum}'
 var bastionIPName = 'pip-${workloadName}-${localenv}-${location}-${sequenceNum}'
@@ -41,7 +43,7 @@ var fwName = 'firewall-${workloadName}-${localenv}-${location}-${sequenceNum}'
 var bastionName = 'bastion-${workloadName}-${localenv}-${location}-${sequenceNum}'
 var lawName = 'law-${workloadName}-${localenv}-${location}-${sequenceNum}'
 var ipGroupName = 'ipg-lbg-workshop'
-
+var storageName = toLower('st${workloadName}${localenv}${sequenceNum}')
 
 //Create Log Analytics
 module law '../ImageBuilder/ResourceModules/0.11.0/modules/operational-insights/workspace/main.bicep' = {
@@ -52,6 +54,48 @@ module law '../ImageBuilder/ResourceModules/0.11.0/modules/operational-insights/
     tags: tags
   }
 }
+
+//Add Azure Storage account and File Share for FSLogix
+//configure the roleAssignments for users to be able to access this storage account from their AVD desktop
+module storage '../ImageBuilder/ResourceModules/0.11.0/modules/storage/storage-account/main.bicep' = {
+  name: 'storage'
+  params: {
+    name: storageName
+    location: location
+    tags: tags
+    allowBlobPublicAccess: false
+    skuName: 'Standard_LRS'
+    fileServices: {
+      shares: [
+        {
+          accessTier: 'Premium'
+          name: 'fslogix'
+          enabledProtocols: [
+            'SMB'
+          ]
+          roleAssignments: [
+            {
+              principalId: fsLogixUserGroupAssignmentID
+              principalType: 'Group'
+              roleDefinitionIdorName: 'Storage File Data SMB Share Contributor'
+            }
+          ]
+        }
+      ]
+      diagnosticSettings: [
+        {
+          name: 'diag-${storageName}-fslogix'
+          workspaceResourceId: law.outputs.resourceId
+        }
+      ]
+    }
+    azureFilesIdentityBasedAuthentication: {
+      directoryServiceOptions: 'AADDS'
+    }
+  }
+}
+
+
 
 //Create the public ip address for the firewall
 module FWpublicIpAddress '../ImageBuilder/ResourceModules/0.11.0/modules/network/public-ip-address/main.bicep' = {
@@ -192,7 +236,6 @@ module ipGroup '../ImageBuilder/ResourceModules/0.11.0/modules/network/ip-group/
   }
 }
 
-
 //Create the firewall policy - module preferred but does not support basic tier
 resource firewallPolicy 'Microsoft.Network/firewallPolicies@2022-01-01'= {
   name: fwPolName
@@ -329,4 +372,5 @@ module bastionHost '../ImageBuilder/ResourceModules/0.11.0/modules/network/basti
   }
   
 }
+
 

@@ -9,6 +9,7 @@ param (
     [String]$location = "uksouth",
     [String]$localenv = "dev",
     [String]$sequenceNum = "001",
+    [String]$userGroup = 'LBG-AVD-Users',
     [Bool]$dologin = $true
 )
 
@@ -48,10 +49,29 @@ if (!(Get-AzResourceGroup -Name $rg -ErrorAction SilentlyContinue)) {
     Write-Host "Resource group: $rg already exists" -ForegroundColor Green
 }
 
+#Check if the AAD group defined by $userGroup exists and if not create it otherwise return its object ID
+Write-Host "Checking if AAD group: $userGroup exists" -ForegroundColor Green
+$groupID = ""
+if (!(Get-AzADGroup -DisplayName $userGroup -ErrorAction SilentlyContinue)) {
+    Write-Host "Creating AAD group: $userGroup" -ForegroundColor Green
+    $group = New-AzADGroup -DisplayName $userGroup -MailNickname $userGroup -Verbose
+    $groupID = $group.Id
+} else {
+    Write-Host "AAD group: $userGroup already exists" -ForegroundColor Green
+    $group = Get-AzADGroup -DisplayName $userGroup
+    $groupID = $group.Id
+}
+
+if (-not $groupID) {
+    Write-Error "ERROR: Cannot find or create AAD group: $userGroup"
+    exit 1
+}
+
 Write-Host "Deploying the Hub Services" -ForegroundColor Green
 New-AzResourceGroupDeployment -Name "Deploy-Hub" -ResourceGroupName $rg -TemplateFile "./hub.bicep" -Verbose -TemplateParameterObject @{
     location=$location
     localenv=$localenv
     workloadName=$workloadName
     sequenceNum=$sequenceNum
+    fsLogixUserGroupAssignmentID=$groupID
 }

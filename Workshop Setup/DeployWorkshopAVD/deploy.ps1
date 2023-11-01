@@ -60,6 +60,7 @@ Write-Host "Deploying the workshop AVD" -ForegroundColor Green
     -numberOfHostsToDeploy 4 `
     -imageToDeploy $imageObject `
     -storageAccountType 'Premium_LRS' `
+    -domainOUPath 'OU=LBG,DC=quberatron,DC=com'
     -dologin $dologin `
     -updateVault $true
 
