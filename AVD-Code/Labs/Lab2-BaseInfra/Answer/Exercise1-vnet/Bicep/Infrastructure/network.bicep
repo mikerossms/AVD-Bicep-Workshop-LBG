@@ -132,7 +132,19 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' = {
 //The "name:" field should be:  name: '${vnetName}-diag'
 
 //Diagnostics for the VNET
-//PUT YOUR CODE HERE
+resource vnet_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticWorkspaceId)) {
+  name: '${vnetName}-diag'
+  scope: virtualNetwork
+  properties: {
+    workspaceId: !empty(diagnosticWorkspaceId) ? diagnosticWorkspaceId : null
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+  }
+}
 
 
 //OUTPUTS
