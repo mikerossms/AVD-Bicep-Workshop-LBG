@@ -39,9 +39,6 @@ param snetCIDR string
 @description('Optional: The ID of the Log Analytics workspace to which you would like to send Diagnostic Logs.')
 param diagnosticWorkspaceId string = ''
 
-@description('Optional: Log retention policy - number of days to keep the logs.')
-param diagnosticRetentionInDays int = 30
-
 //Identity Vnet Parameters
 @description('Optional: The name of the identity vnet to peer to')
 param identityVnetName string = 'vnet-identity'
