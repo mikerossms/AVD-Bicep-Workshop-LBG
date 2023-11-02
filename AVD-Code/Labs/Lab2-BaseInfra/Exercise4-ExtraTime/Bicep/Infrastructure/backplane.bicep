@@ -106,7 +106,7 @@ param deployVault bool = true
 //It should all be in lower case, and be derived from the appropriate parameters
 //e.g. kv-lbg-uksouth-dev-001
 
-var keyVaultName = '???'
+var keyVaultName = toLower('kv-${workloadName}-${location}-${localEnv}-${uniqueName}')
 
 //RESOURCES
 //Resources are all deployed as MODULES.  Each module defines a block of BICEP code and are listed above
@@ -139,6 +139,7 @@ module Network 'network.bicep' = {
     identityVnetName: identityVnetName
     identityVnetRG: identityVnetRG
     adServerIPAddresses: adServerIPAddresses
+    adDomainName: 'quberatron.com'
   }
 }
 
@@ -153,9 +154,16 @@ module Network 'network.bicep' = {
 //So on the first run of the script, or if the admin passwords change.  The reason for this is that we dont want to have
 //to keep passing in the passwords every time we run the script.
 //Ref: https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/conditional-resource-deployment
-
 module KeyVault 'keyvault.bicep' = if (deployVault) {
-
+  name: 'KeyVault'
+  params: {
+    location: location
+    keyVaultName: keyVaultName
+    tags: tags
+    diagnosticWorkspaceId: LAWorkspace.id
+    domainAdminPassword: domainAdminPassword
+    localAdminPassword: localAdminPassword
+  }
 }
 
 //These are examples of outputs.  In this case they return to the calling script for its consumption, but in general they

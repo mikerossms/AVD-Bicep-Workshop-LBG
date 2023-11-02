@@ -25,7 +25,6 @@ param localEnv string
 param uniqueName string
 
 @description ('Required: The name of the workload to deploy - will make up part of the name of a resource')
-param workloadName string
 
 @description('Required: An object (think hash) that contains the tags to apply to all resources.')
 param tags object

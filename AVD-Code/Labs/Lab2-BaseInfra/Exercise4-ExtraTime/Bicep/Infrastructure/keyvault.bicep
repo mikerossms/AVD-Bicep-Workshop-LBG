@@ -39,7 +39,7 @@ resource Vault 'Microsoft.KeyVault/vaults@2022-07-01' = {
     sku: {
       name: 'standard'
       family: 'A'
-    }
+    
     tenantId: tenant().tenantId
     accessPolicies: []
     networkAcls: {

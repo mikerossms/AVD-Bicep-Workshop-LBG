@@ -13,20 +13,14 @@ It is also responsible for adding a user to the Application Group and changing t
 
 #Get the runtime parameters from the user.  You will need to change the "uniqueIdentifier" for each user to avoid clashes
 param (
-    [String]$uniqueIdentifier = "full",
+    [String]$uniqueIdentifier = "",
     [String]$location = "uksouth",
     [String]$localEnv = "dev",
     [String]$subID = "152aa2a3-2d82-4724-b4d5-639edab485af",
     [String]$workloadNameAVD = "lbg",
     [String]$workloadNameDiag = "lbg",
-    [String]$avdVnetCIDR = "10.140.0.0/24",
-    [String]$vmHostSize = "Standard_D2s_v3",
-    [String]$storageAccountType = "StandardSSD_LRS",
-    [Int]$numberOfHostsToDeploy = 1,
-    [Object]$imageToDeploy = @{},
-    [String]$domainOUPath = "OU=AADDC Computers,DC=quberatron,DC=com",
-    [String]$AppGroupSessionDesktopName = "Desktop-$workloadNameAVD",
-    [Bool]$dologin = $true,
+    [String]$avdVnetCIDR = "",
+    [Bool]$dologin = $false,
     [Bool]$useCentralVMJoinerPwd = $true,
     [Bool]$updateVault = $true
 )
@@ -36,19 +30,20 @@ if (-not $uniqueIdentifier) {
     exit 1
 }
 
+if (-not $avdVnetCIDR) {
+    Write-Error "You must specify a virtual network address range in CIDR format.  You will be provided this by the instructor"
+    exit 1
+}
+
 #Define the name of both the diagnostic and AVD deployment RG
 $avdRGName = "rg-$workloadNameAVD-$location-$localEnv-$uniqueIdentifier"
 $diagRGName = "rg-$workloadNameDiag-$location-$localEnv-$uniqueIdentifier"
 
 #Leave these settings as they are - they set up the connection and access to the domain.
 $domainName = "quberatron.com"
-$domainAdminUsername = "vmjoiner@$domainName"
-$localAdminUsername = "localadmin"
 
 #Keyvault and secret location for the VM Joiner Password
 $domainKeyVaultName = "kv-entrads"
-#$domainKeyVaultRG = "RG-EntraDomainServices"
-#$domainKeyVaultSub = "ea66f27b-e8f6-4082-8dad-006a4e82fcf2"
 $domainVMJoinerSecretKey = "domainjoiner"
 
 #Configure the domain and local admin passwords
@@ -96,6 +91,30 @@ if ((Get-AzContext).Subscription.Id -ne $subID) {
     Write-Host "Changed context to subscription: $subID" -ForegroundColor Green
 } 
 
+#while we have created placeholders above for the admin passwords, this next code provides a means to actually get the real passwords and add them to the keyvault
+#Get the new admin passwords and update/create the vault if required otherwise skip this.
+if ($updateVault) {
+    Write-Warning "They KeyVault and its admin passwords will be updated (or created if they don't exist)"
+    Write-Warning 'If you dont want to do this, press Ctrl+C twice, add "-updateVault $false" to the script parameters and run again'
+    if ($useCentralVMJoinerPwd) {
+        Write-Host "Getting the VMJoiner password from the Central Entra DS vault, manual setting not required"
+        #Get the secret from the Azure central Entra AD Keyvault
+        $domainVMJoinerSecret = Get-AzKeyVaultSecret -VaultName $domainKeyVaultName -Name $domainVMJoinerSecretKey -AsPlainText -ErrorAction SilentlyContinue
+        if (-not $domainVMJoinerSecret) {
+            Write-Error "ERROR: Unable to get the VMJoiner password from the central Entra DS KeyVault"
+            exit 1
+        }
+        $domainAdminPassword = ConvertTo-SecureString -String $domainVMJoinerSecret -AsPlainText -Force
+    
+    } else {
+        $domainAdminPassword = Read-Host -Prompt "Enter the password for the Domain VMJoiner account" -AsSecureString
+    }
+    $localAdminPassword = Read-Host -Prompt "Enter a password for the Local Admin account for your AVD hosts" -AsSecureString
+} else {
+    Write-Warning "Password setting skipped - using existing values in keyvault.  Vault will not be updated"
+}
+
+
 #Create a resource group for the diagnostic resources if it does not already exist then check it has been created successfully
 if (-not (Get-AzResourceGroup -Name $diagRGName -ErrorAction SilentlyContinue)) {
     Write-Host "Creating Resource Group: $diagRGName" -ForegroundColor Green
@@ -107,7 +126,7 @@ if (-not (Get-AzResourceGroup -Name $diagRGName -ErrorAction SilentlyContinue)) 
 
 #Deploy the diagnostic.bicep code to that RG we just created
 Write-Host "Deploying diagnostic.bicep to Resource Group: $diagRGName" -ForegroundColor Green
-$diagOutput = New-AzResourceGroupDeployment -Name "Deploy-Diagnostics" -ResourceGroupName $diagRGName -TemplateFile "$PSScriptRoot/../Bicep/Diagnostics/diagnostics.bicep" -Verbose -TemplateParameterObject @{
+$diagOutput = New-AzResourceGroupDeployment -Name "Deploy-Diagnostics" -ResourceGroupName $diagRGName -TemplateFile "$PSScriptRoot/Bicep/Diagnostics/diagnostics.bicep" -Verbose -TemplateParameterObject @{
     location=$location
     localEnv=$localEnv
     tags=$tags
@@ -141,7 +160,7 @@ $currentUserId = (Get-AzADUser -UserPrincipalName $currentUser).Id
 Write-Host "Deploying Infrastructure (backplane.bicep) to Resource Group: $avdRGName" -ForegroundColor Green
 $backplaneOutput = New-AzResourceGroupDeployment -Name "Deploy-Backplane" `
  -ResourceGroupName $avdRGName `
- -TemplateFile "$PSScriptRoot/../Bicep/Infrastructure/backplane.bicep" `
+ -TemplateFile "$PSScriptRoot/Bicep/Infrastructure/backplane.bicep" `
  -domainAdminPassword $domainAdminPassword `
  -localAdminPassword $localAdminPassword `
  -Verbose `
@@ -153,15 +172,13 @@ $backplaneOutput = New-AzResourceGroupDeployment -Name "Deploy-Backplane" `
     workloadName=$workloadNameAVD
     rgDiagName=$diagRGName
     lawName=$diagOutput.Outputs.lawName.Value
-    domainName=$domainName
     avdVnetCIDR=$avdVnetCIDR
     avdSnetCIDR=$avdSnetCIDR
     adServerIPAddresses=$adServerIPAddresses
     deployVault=$updateVault
-    appGroupUserID=$currentUserId
 }
 
-if (-not $backplaneOutput.Outputs.hpName.Value) {
+if (-not $backplaneOutput.Outputs.subNetId.Value) {
     Write-Error "ERROR: Failed to deploy BackPlane to Resource Group: $avdRGName"
     exit 1
 }

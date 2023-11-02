@@ -12,18 +12,18 @@ The lab is split up into a number of exercises, each expanding on the previous o
 
 ```Powershell
 cd Exercise<n>
-.\deploy.ps1 -username '<your username>'
+.\deploy.ps1 -uniqueIdentifier '<your username>'
 ```
 
 e.g.
 ```Powershell
 cd Exercise1
-.\deploy.ps1 -username 'tomsmith'
+.\deploy.ps1 -uniqueIdentifier 'tomsmith'
 ```
 
 ## What will happen
 
-The deployment script will create a new resource group "rg-diag-uksouth-dev-[your unique id]" that will be visible in the portal containing a single Log Analytics Workspace
+The deployment script will create a new resource group "rg-lbg-uksouth-dev-[your unique id]" that will be visible in the portal containing a single Log Analytics Workspace
 
 ## Why do this?
 
