@@ -39,9 +39,6 @@ if (-not $avdVnetCIDR) {
 $avdRGName = "rg-$workloadNameAVD-$location-$localEnv-$uniqueIdentifier"
 $diagRGName = "rg-$workloadNameDiag-$location-$localEnv-$uniqueIdentifier"
 
-#Leave these settings as they are - they set up the connection and access to the domain.
-$domainName = "quberatron.com"
-
 #Keyvault and secret location for the VM Joiner Password
 $domainKeyVaultName = "kv-entrads"
 $domainVMJoinerSecretKey = "domainjoiner"
@@ -148,12 +145,6 @@ if (-not (Get-AzResourceGroup -Name $avdRGName -ErrorAction SilentlyContinue)) {
         exit 1
     }
 }
-
-# Get the Azure Username of the user currently logged in and running this script
-$currentUser = (Get-AzContext | Select-Object -ExpandProperty Account).Id
-
-# Get the ID of this user from Azure AD
-$currentUserId = (Get-AzADUser -UserPrincipalName $currentUser).Id
 
 #Deploy the AVD backplane bicep code which includes the networks, keyvault, hostpool, app grup and worspace.
 #the user deploying this script is also then added to the App Group as a user

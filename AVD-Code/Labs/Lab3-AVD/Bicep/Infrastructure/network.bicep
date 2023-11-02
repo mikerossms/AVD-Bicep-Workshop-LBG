@@ -39,9 +39,6 @@ param snetCIDR string
 @description('Optional: The ID of the Log Analytics workspace to which you would like to send Diagnostic Logs.')
 param diagnosticWorkspaceId string = ''
 
-@description('Optional: Log retention policy - number of days to keep the logs.')
-param diagnosticRetentionInDays int = 30
-
 //Identity Vnet Parameters
 @description('Optional: The name of the identity vnet to peer to')
 param identityVnetName string = 'vnet-identity'
@@ -79,32 +76,28 @@ resource networkSecurityGroup_diagnosticSettings 'Microsoft.Insights/diagnosticS
       {
         categoryGroup: 'allLogs'
         enabled: true
-        retentionPolicy: {
-          enabled: true
-          days: diagnosticRetentionInDays
-        }
       }
     ]
   }
 }
 
 //Set up the AVD rule for the NSG
-//Note: AVD does not require RDP access from anywhereelse as the connection is handled by the PaaS service underneath
+//Note: AVD does not require RDP access from anywhere else as the connection is handled by the PaaS service underneath
 //There are other forms of connection available as well, but this is the most common.
 //Ref: https://learn.microsoft.com/en-gb/azure/templates/microsoft.network/networksecuritygroups/securityrules?tabs=bicep&pivots=deployment-language-bicep
 resource securityRule 'Microsoft.Network/networkSecurityGroups/securityRules@2022-07-01' = {
   name: nsgAVDRuleName
   parent: networkSecurityGroup
   properties: {
+    //Need to enable port TCP/3389 from the virtualnetwork
     access: 'Allow'
-    description: 'Allow RDP access to AVD from the Virtual Network'
-    direction: 'Inbound'
-    priority: 1000
     protocol: 'Tcp'
+    destinationPortRange: '3389'
+    destinationAddressPrefix: vnetCIDR
     sourceAddressPrefix: 'VirtualNetwork'
     sourcePortRange: '*'
-    destinationAddressPrefix: '*'
-    destinationPortRange: '3389'
+    direction: 'Inbound'
+    priority: 100
   }
 }
 
@@ -117,6 +110,7 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' = {
   location: location
   tags: tags
   properties: {
+    //Will need to provide address space, dhcpOptions and subnets
     addressSpace: {
       addressPrefixes: [
         vnetCIDR
@@ -129,18 +123,18 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' = {
       {
         name: snetName
         properties: {
-          addressPrefix: snetCIDR
-          networkSecurityGroup: {
-            id: networkSecurityGroup.id
-          }
+            addressPrefix: snetCIDR
+            networkSecurityGroup: {
+              id: networkSecurityGroup.id
+            }
         }
-      }]
+      }
+    ]
   }
 }
 
-//As for the NSG, we can also apply diagnostics to the VNET (and subnets automatically)
-//You will note that the diagnostic settings follow a very similar pattern.  This is a prime candidate for a module
-resource virtualNetwork_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticWorkspaceId)) {
+//Diagnostics for the VNET
+resource vnet_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticWorkspaceId)) {
   name: '${vnetName}-diag'
   scope: virtualNetwork
   properties: {
@@ -149,14 +143,11 @@ resource virtualNetwork_diagnosticSettings 'Microsoft.Insights/diagnosticSetting
       {
         categoryGroup: 'allLogs'
         enabled: true
-        retentionPolicy: {
-          enabled: true
-          days: diagnosticRetentionInDays
-        }
       }
     ]
   }
 }
+
 
 //This next set of resources defines the peering between two networks.  Note that Peering is a two-sided process, i.e. you need to apply the peering as
 //two separate transations, one at each end of the link.  this is provided as a module.  the reason for this is that we need to provide two
@@ -174,7 +165,6 @@ resource identityVnet 'Microsoft.Network/virtualNetworks@2022-07-01' existing = 
 //the modules defaults for the majority of this
 module outboundPeering 'moduleRemotePeer.bicep' = {
   name: 'outboundPeering'
-  scope: resourceGroup()
   params: {
     connectFromVnetName: virtualNetwork.name
     connectToVnetID: identityVnet.id

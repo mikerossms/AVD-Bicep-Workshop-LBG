@@ -198,10 +198,6 @@ resource appGroup_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021
       {
         categoryGroup: 'allLogs'
         enabled: true
-        retentionPolicy: {
-          enabled: true
-          days: diagnosticRetentionInDays
-        }
       }
     ]
   }

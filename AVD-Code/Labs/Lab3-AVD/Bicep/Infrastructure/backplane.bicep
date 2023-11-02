@@ -56,11 +56,6 @@ param tags object = {
   workload: workloadName
 }
 
-//Domain Details
-//This is an example of a Required string which MUST be passed into the BICEP as a parameter from teh calling script
-@description('Required: The name of the domain to join the VMs to')
-param domainName string
-
 //This is an example of a SECURE string.  this is again passed in from the calling script, but must be done so in a secure manner
 //This particular parameter is passed in so that the password can be then stored in a keyvault so you dont need to keep providing it.
 @secure()
@@ -81,10 +76,10 @@ param avdSnetCIDR string
 
 //Identity VNET Details
 @description('Optional: The name of the identity vnet to peer to')
-param identityVnetName string = 'vnet-identity'
+param identityVnetName string = 'vnet-LBGCentralHub-dev-uksouth-001'
 
 @description('Optional: The resource group containing the identity vnet to peer to')
-param identityVnetRG string = 'rg-identity'
+param identityVnetRG string = 'rg-lbgcentralhub-dev-uksouth-001'
 
 @description('Required: The IP addresses of the AD server or AADDS that the VNET will used for name lookup')
 param adServerIPAddresses array
@@ -162,6 +157,11 @@ module KeyVault 'keyvault.bicep' = if (deployVault) {
   }
 }
 
+/*TASK*/
+//Build the Host Pool Module
+//It will call hostpool.bicep
+//The module name itself must be called 'Hostpool' (without the single quotes)
+
 //Deploy the HostPool resource which includes the app group and workspace as well
 module HostPool 'hostpool.bicep' = {
   name: 'HostPool'
@@ -172,7 +172,6 @@ module HostPool 'hostpool.bicep' = {
     workloadName: workloadName
     tags: tags
     diagnosticWorkspaceId: LAWorkspace.id
-    domainName: domainName
     appGroupUserID: appGroupUserID
   }
 }
@@ -180,8 +179,12 @@ module HostPool 'hostpool.bicep' = {
 //These are examples of outputs.  In this case they return to the calling script for its consumption, but in general they
 //are usually used to pass outputs from bicep modules.
 //Ref: https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/outputs?tabs=azure-powershell
-// output hpName string = HostPool.outputs.hostPoolName
 output subNetId string = Network.outputs.snetID
-// output appGroupID string = HostPool.outputs.appGroupId
-// output appGroupName string = HostPool.outputs.hostPoolAppGroupName
 output keyvaultName string = KeyVault.outputs.keyVaultName
+
+/*TASK*/
+//We also need outputs for the
+// - Host Pools Name (to be called hpName)
+// - Application Group Name (to be callsed appGroupName)
+// - Application Group IF (to be callsed appGroupID)
+//HINT - The output from each module is also an object, so like a resource, the values you output can be referenced
