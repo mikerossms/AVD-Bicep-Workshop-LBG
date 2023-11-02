@@ -48,35 +48,16 @@ param tags object = {
   workload: workloadName
 }
 
-//Notice in this paramater case, we are using integers.  If passing in from powershell, we may need to use casting using the [int] type
-@description('Optional: The number of days to retain data in the Log Analytics Workspace')
-param lawDataRetention int = 30
-
-//VARIABLES
-// Variables are created at runtime and are usually used to build up resource names where not defined as a parameter, or to use functions and logic to define a value
-// In most cases, you could just provide these as defaulted parameters, however you cannot use logic on parameters
-//Variables are defined in the code and, unlike parameters, cannot be passed in and so remain fixed inside the template.
-
-var lawName = toLower('law-${workloadName}-${location}-${localEnv}-${uniqueName}')
-var lawSKU = 'PerGB2018'
-
-//RESOURCES
-
 //Deploy the Log Analytics Workspace (notice the name is not actually log analytics workspace but Operational Insights)
 //When you come to deploy an agent on the Hostpool Hosts, you will need to use the new Azure Monitoring Agent (AMA) and not the old Log Analytics (OMS) agent
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   location: location
-  name: lawName
+  name: toLower('law-${workloadName}-${location}-${localEnv}-${uniqueName}')
   tags: tags
   properties: {
     sku: {
-      name: lawSKU
+      name: 'PerGB2018'
     }
-    retentionInDays: lawDataRetention
   }
 }
-
-//OUTPUTS
-output lawName string = lawName
-output lawID string = logAnalyticsWorkspace.id
 

@@ -15,28 +15,16 @@ It is also responsible for adding a user to the Application Group and changing t
 param (
     [Parameter(Mandatory)]
     [String]$uniqueIdentifier,
+    [String]$subID = "152aa2a3-2d82-4724-b4d5-639edab485af",
     [String]$location = "uksouth",
     [String]$localEnv = "dev",
-    [String]$subID = "152aa2a3-2d82-4724-b4d5-639edab485af",
-    [String]$workloadNameAVD = "avd",
-    [String]$workloadNameDiag = "diag",
-    [Bool]$dologin = $true,
-    [Bool]$updateVault = $true
+    [String]$workloadNameDiag = "lbg",
+    [Bool]$dologin = $false
 )
 
 if (-not $uniqueIdentifier) {
-    Write-Error "A unique identifier MUST be specified.  Always use the same identifier for EVERY deployment"
+    Write-Error "Please provide your uniqueIdentifier - e.g. 'deploy.ps1 -uniqueIdentifier jbloggs'"
     exit 1
-}
-
-
-#Define the name of both the diagnostic and AVD deployment RG
-$diagRGName = "rg-$workloadNameDiag-$location-$localEnv-$uniqueIdentifier"
-
-#Set up some basic tags to attach to resources
-$tags = @{
-    Environment=$localEnv
-    Owner="LBG"
 }
 
 #Login to azure (if required) - if you have already done this once, then it is unlikley you will need to do it again for the remainer of the session
@@ -45,6 +33,15 @@ if ($dologin) {
     Connect-AzAccount -Subscription $subID
 } else {
     Write-Warning "Login skipped"
+}
+
+#Create the resource group name from the unique identifier
+$diagRGName = "rg-$workloadNameDiag-$location-$localEnv-$uniqueIdentifier"
+
+#Set up some basic tags to attach to resources
+$tags = @{
+    Environment=$localEnv
+    Owner="LBG"
 }
 
 #check that the subscription ID we are connected to matches the one we want and change it to the right one if not
@@ -62,7 +59,7 @@ if ((Get-AzContext).Subscription.Id -ne $subID) {
     Write-Host "Changed context to subscription: $subID" -ForegroundColor Green
 }
 
-#Create a resource group for the diagnostic resources if it does not already exist then check it has been created successfully
+#Create the resource group if it does not already exist
 if (-not (Get-AzResourceGroup -Name $diagRGName -ErrorAction SilentlyContinue)) {
     Write-Host "Creating Resource Group: $diagRGName" -ForegroundColor Green
     if (-not (New-AzResourceGroup -Name $diagRGName -Location $location)) {
@@ -73,7 +70,7 @@ if (-not (Get-AzResourceGroup -Name $diagRGName -ErrorAction SilentlyContinue)) 
 
 #Deploy the diagnostic.bicep code to that RG we just created
 Write-Host "Deploying diagnostic.bicep to Resource Group: $diagRGName" -ForegroundColor Green
-$diagOutput = New-AzResourceGroupDeployment -Name "Deploy-Diagnostics" -ResourceGroupName $diagRGName -TemplateFile "$PSScriptRoot/../Bicep/Diagnostics/diagnostics.bicep" -Verbose -TemplateParameterObject @{
+$diagOutput = New-AzResourceGroupDeployment -Name "Deploy-Diagnostics" -ResourceGroupName $diagRGName -TemplateFile "$PSScriptRoot/Bicep/Diagnostics/diagnostics.bicep" -Verbose -TemplateParameterObject @{
     location=$location
     localEnv=$localEnv
     tags=$tags
