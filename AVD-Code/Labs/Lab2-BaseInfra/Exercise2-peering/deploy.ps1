@@ -13,22 +13,14 @@ It is also responsible for adding a user to the Application Group and changing t
 
 #Get the runtime parameters from the user.  You will need to change the "uniqueIdentifier" for each user to avoid clashes
 param (
-    [String]$uniqueIdentifier = "full",
+    [String]$uniqueIdentifier = "",
     [String]$location = "uksouth",
     [String]$localEnv = "dev",
     [String]$subID = "152aa2a3-2d82-4724-b4d5-639edab485af",
     [String]$workloadNameAVD = "lbg",
     [String]$workloadNameDiag = "lbg",
-    [String]$avdVnetCIDR = "10.140.0.0/24",
-    [String]$vmHostSize = "Standard_D2s_v3",
-    [String]$storageAccountType = "StandardSSD_LRS",
-    [Int]$numberOfHostsToDeploy = 1,
-    [Object]$imageToDeploy = @{},
-    [String]$domainOUPath = "OU=AADDC Computers,DC=quberatron,DC=com",
-    [String]$AppGroupSessionDesktopName = "Desktop-$workloadNameAVD",
-    [Bool]$dologin = $true,
-    [Bool]$useCentralVMJoinerPwd = $true,
-    [Bool]$updateVault = $true
+    [String]$avdVnetCIDR = "",
+    [Bool]$dologin = $false
 )
 
 if (-not $uniqueIdentifier) {
@@ -36,10 +28,14 @@ if (-not $uniqueIdentifier) {
     exit 1
 }
 
+if (-not $avdVnetCIDR) {
+    Write-Error "You must specify a virtual network address range in CIDR format.  You will be provided this by the instructor"
+    exit 1
+}
+
 #Define the name of both the diagnostic and AVD deployment RG
 $avdRGName = "rg-$workloadNameAVD-$location-$localEnv-$uniqueIdentifier"
 $diagRGName = "rg-$workloadNameDiag-$location-$localEnv-$uniqueIdentifier"
-
 
 #Configure the networking for this instance of AVD.
 #$avdVnetCIDR = "10.200.1.0/24" - now set in the parameters
@@ -91,7 +87,7 @@ if (-not (Get-AzResourceGroup -Name $diagRGName -ErrorAction SilentlyContinue)) 
 
 #Deploy the diagnostic.bicep code to that RG we just created
 Write-Host "Deploying diagnostic.bicep to Resource Group: $diagRGName" -ForegroundColor Green
-$diagOutput = New-AzResourceGroupDeployment -Name "Deploy-Diagnostics" -ResourceGroupName $diagRGName -TemplateFile "$PSScriptRoot/../Bicep/Diagnostics/diagnostics.bicep" -Verbose -TemplateParameterObject @{
+$diagOutput = New-AzResourceGroupDeployment -Name "Deploy-Diagnostics" -ResourceGroupName $diagRGName -TemplateFile "$PSScriptRoot/Bicep/Diagnostics/diagnostics.bicep" -Verbose -TemplateParameterObject @{
     location=$location
     localEnv=$localEnv
     tags=$tags
@@ -114,20 +110,12 @@ if (-not (Get-AzResourceGroup -Name $avdRGName -ErrorAction SilentlyContinue)) {
     }
 }
 
-# Get the Azure Username of the user currently logged in and running this script
-$currentUser = (Get-AzContext | Select-Object -ExpandProperty Account).Id
-
-# Get the ID of this user from Azure AD
-$currentUserId = (Get-AzADUser -UserPrincipalName $currentUser).Id
-
 #Deploy the AVD backplane bicep code which includes the networks, keyvault, hostpool, app grup and worspace.
 #the user deploying this script is also then added to the App Group as a user
 Write-Host "Deploying Infrastructure (backplane.bicep) to Resource Group: $avdRGName" -ForegroundColor Green
 $backplaneOutput = New-AzResourceGroupDeployment -Name "Deploy-Backplane" `
  -ResourceGroupName $avdRGName `
- -TemplateFile "$PSScriptRoot/../Bicep/Infrastructure/backplane.bicep" `
- -domainAdminPassword $domainAdminPassword `
- -localAdminPassword $localAdminPassword `
+ -TemplateFile "$PSScriptRoot/Bicep/Infrastructure/backplane.bicep" `
  -Verbose `
  -TemplateParameterObject @{
     location=$location
@@ -137,21 +125,15 @@ $backplaneOutput = New-AzResourceGroupDeployment -Name "Deploy-Backplane" `
     workloadName=$workloadNameAVD
     rgDiagName=$diagRGName
     lawName=$diagOutput.Outputs.lawName.Value
-    domainName=$domainName
     avdVnetCIDR=$avdVnetCIDR
     avdSnetCIDR=$avdSnetCIDR
     adServerIPAddresses=$adServerIPAddresses
-    deployVault=$updateVault
-    appGroupUserID=$currentUserId
 }
 
-if (-not $backplaneOutput.Outputs.hpName.Value) {
+if (-not $backplaneOutput.Outputs.subNetId.Value) {
     Write-Error "ERROR: Failed to deploy BackPlane to Resource Group: $avdRGName"
     exit 1
 }
-
-
-
 
 #finished
 Write-Host "Finished Deployment" -ForegroundColor Green

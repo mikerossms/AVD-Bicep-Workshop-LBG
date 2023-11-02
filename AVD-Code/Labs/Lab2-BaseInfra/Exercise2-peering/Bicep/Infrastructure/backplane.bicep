@@ -65,10 +65,10 @@ param avdSnetCIDR string
 
 //Identity VNET Details
 @description('Optional: The name of the identity vnet to peer to')
-param identityVnetName string = 'vnet-identity'
+param identityVnetName string = 'vnet-LBGCentralHub-dev-uksouth-001'
 
 @description('Optional: The resource group containing the identity vnet to peer to')
-param identityVnetRG string = 'rg-identity'
+param identityVnetRG string = 'rg-lbgcentralhub-dev-uksouth-001'
 
 @description('Required: The IP addresses of the AD server or AADDS that the VNET will used for name lookup')
 param adServerIPAddresses array
@@ -113,3 +113,5 @@ module Network 'network.bicep' = {
     adServerIPAddresses: adServerIPAddresses
   }
 }
+
+output subNetId string = Network.outputs.snetID

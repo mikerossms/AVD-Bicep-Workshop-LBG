@@ -79,10 +79,6 @@ resource networkSecurityGroup_diagnosticSettings 'Microsoft.Insights/diagnosticS
       {
         categoryGroup: 'allLogs'
         enabled: true
-        retentionPolicy: {
-          enabled: true
-          days: diagnosticRetentionInDays
-        }
       }
     ]
   }
@@ -140,22 +136,21 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' = {
   }
 }
 
-// resource secondSNET 'Microsoft.Network/virtualNetworks/subnets@2022-09-01' = {
-//   name: snetName
-//   parent: virtualNetwork
-//   properties: {
-//     networkSecurityGroup: {
-//       id: networkSecurityGroup.id
-//     }
-//     addressPrefix: snetCIDR
-//   }
-// }
+//Diagnostics for the VNET
+resource vnet_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticWorkspaceId)) {
+  name: '${vnetName}-diag'
+  scope: virtualNetwork
+  properties: {
+    workspaceId: !empty(diagnosticWorkspaceId) ? diagnosticWorkspaceId : null
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+  }
+}
 
-//As for the NSG, we can also apply diagnostics to the VNET (and subnets automatically)
-//You will note that the diagnostic settings follow a very similar pattern.  This is a prime candidate for a module
-// resource virtualNetwork_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticWorkspaceId)) {
-//   //Build out the diagnostics
-// }
 
 //This next set of resources defines the peering between two networks.  Note that Peering is a two-sided process, i.e. you need to apply the peering as
 //two separate transations, one at each end of the link.  this is provided as a module.  the reason for this is that we need to provide two
