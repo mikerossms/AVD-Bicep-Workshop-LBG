@@ -64,11 +64,39 @@ param subnetID string
 @description('Required: The Name of the Keyvault to go to for the local and domain admin passwords')
 param keyVaultName string
 
+@description('Optional: The size of the VM to deploy.  Default is Standard_D2s_v3')
+param vmSize string = 'Standard_D2s_v3'
+
+@description('Optional: The image that the VM Host will use')
+param vmImageObject object = {
+  offer: 'office-365'
+  publisher: 'microsoftwindowsdesktop'
+  sku: 'win11-22h2-avd-m365'
+  version: 'latest'
+}
+
+@description('Optional: The type of storage to use.  By default this is a standard SSD, for shared machines Premium/Ephemeral is usually better')
+param storageAccountType string = 'StandardSSD_LRS'
+
+//VARIABLES
+//This piece of logic used to ensure that if an empty object is passed in which overrides the default, it can be set back to a useful image type
+//Effectivly this is just a bit of basic error handling.  It uses the syntax <test> ? <true> : <false>
+//Ref: https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/operators-access#property-accessor 
+var defaultImage = empty(vmImageObject) ? {
+  offer: 'office-365'
+  publisher: 'microsoftwindowsdesktop'
+  sku: 'win11-22h2-avd-m365'
+  version: 'latest'
+} : vmImageObject
+
 //RESOURCES
 //Pull in the existing keyvault
 resource KeyVault 'Microsoft.KeyVault/vaults@2022-11-01' existing = {
   name: keyVaultName
 }
+
+/*TASK*/
+//How can you modify the module below to build out more than one host.
 
 //Deploy the Hosts for the host pool.  this applies a FOR loop to build out <n> hosts as defined by numberOfHostsToDeploy
 //Note that each host is built using a module.  This significently reduces complexity otherwise you would need to wrap a
@@ -92,5 +120,8 @@ module Hosts 'moduleHost.bicep' = [for i in range(0, numberOfHostsToDeploy): {
     subnetID: subnetID
     hostPoolName: hostPoolName
     hostPoolToken: hostPoolToken
+    vmSize: vmSize
+    vmImageObject: defaultImage
+    storageAccountType:storageAccountType
   }
 }]

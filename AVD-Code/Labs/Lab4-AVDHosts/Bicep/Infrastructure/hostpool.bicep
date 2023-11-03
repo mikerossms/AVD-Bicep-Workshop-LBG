@@ -28,31 +28,7 @@ param tags object
 @description('Required: The ID of the Log Analytics workspace to which you would like to send Diagnostic Logs.')
 param diagnosticWorkspaceId string
 
-@description('Optional: Log retention policy - number of days to keep the logs.')
-param diagnosticRetentionInDays int = 30
-
-//Identity
-@description('Required: The name of the domain to join the VMs to')
-param domainName string
-
-//HostPool Settings
-@description('Optional: The template of the host to use for the Host Pool - can use both gallery and custom images')
-param vmTemplate object = {
-  domain:domainName
-  galleryImageOffer: 'office-365'
-  galleryImagePublisher: 'microsoftwindowsdesktop'
-  galleryImageSKU: 'win11-22h2-avd-m365'
-  imageType: 'Gallery'
-  namePrefix: 'AVDv2'
-  osDiskType: 'StandardSSD_LRS'
-  useManagedDisks: true
-  vmSize: {
-      id: 'Standard_D2s_v3'
-      cores: 2
-      ram: 8
-  }
-}
-
+//AVD settings
 @description('Optional: the maximum number of users allowed on each host (Host Session Limit)')
 param maxUsersPerHost int = 4
 
@@ -63,7 +39,11 @@ param maxUsersPerHost int = 4
 ])
 param loadBalancerType string = 'BreadthFirst'
 
-@description('Optional. Host Pool token validity length. Usage: \'PT8H\' - valid for 8 hours; \'P5D\' - valid for 5 days; \'P1Y\' - valid for 1 year. When not provided, the token will be valid for 48 hours.')
+/*TASK*/
+//Using the reference here: https://en.wikipedia.org/wiki/ISO_8601#Durations
+//Update the tokenValidityLength parameter below to set the default length at 8 hours
+
+@description('Optional. Host Pool token validity length. Usage: \'PT8H\' - valid for 8 hours; \'P5D\' - valid for 5 days; When not provided, the token will be valid for 8 hours.')
 param tokenValidityLength string = 'PT8H'
 
 //This parameter is a special case as it is a parameter that should NOT be passed in from other scripts or modules.  Why?  Certain commands are only
@@ -75,8 +55,13 @@ param baseTime string = utcNow('u')
 @description('Required: The ID of the USER to add to the Application Group as a Desktop Virtualization User')
 param appGroupUserID string
 
-//The content of this ID, while a parameter is actually static and comes from the Powershell command:
-//(Get-AzRoleDefinition -Name "Desktop Virtualization User").id
+/*TASK*/
+//The appGRoupRoleDefinitionID needs to be configured as a globally static ID of the form 'hex-hex-hex-hex-hex'
+//We need the static ID for the "Desktop Virtualization User" role.
+//You can find this by running the powershell command "Get-AzRoleDefinition -Name "Desktop Virtualization User"
+
+//ADVANCED: Could you do this programatically in Powershell and pass it in as a parameter rather than hardcoding it here
+
 @description('Optional: The static ID of the RBAC group to add the user to.  This defaults to Desktop Virtualization User')
 param appGroupRoleDefinitionID string = '1d18fff3-a72a-46b5-b4a9-0b38a3cd7e63'
 
@@ -86,9 +71,26 @@ var hostPoolWorkspaceName = toLower('vdws-${workloadName}-${location}-${localEnv
 var hostPoolAppGroupName = toLower('vdag-${workloadName}-${location}-${localEnv}-${uniqueName}')
 var hostPoolScalePlanName = toLower('vdscaling-${workloadName}-${location}-${localEnv}-${uniqueName}')
 
+/*TASK*/
+//Determining the right parameters for the template can be a bit of a challenge.  By following this:
+//https://learn.microsoft.com/en-us/azure/virtual-machines/windows/cli-ps-findimage 
+//See if you can work out where the vmTemplate details have come from
+
 //This variable does a Date/Time addition calculation using the baseTime above and adding the token time to it
 //Ref: https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/bicep-functions-date#datetimeadd
 var tokenExpirationTime = dateTimeAdd(baseTime, tokenValidityLength)
+var vmTemplate = {
+    galleryImageOffer: 'office-365'
+    galleryImagePublisher: 'microsoftwindowsdesktop'
+    galleryImageSKU: 'win11-22h2-avd-m365'
+}
+
+/*TASK*/
+//Can you fill in the missing properties for the hostpool?
+//You will need registrationInfo (object), preferredAppGroupType (string), loadBalancerType (parameter), maxSessionLimit (parameter)
+
+//ADVANCED:
+//Add an agentUpdate object that will configure a maintenance window for 6pm Friday and 8pm Saturday
 
 //Create the Host Pool
 //Note: This also sets some example maintenance windows.
@@ -105,6 +107,7 @@ resource hostPool 'Microsoft.DesktopVirtualization/hostPools@2022-09-09' = {
     maxSessionLimit: maxUsersPerHost
     loadBalancerType: loadBalancerType
     validationEnvironment: false
+    customRdpProperty: 'drivestoredirect:s:;audiomode:i:0;videoplaybackmode:i:1;redirectclipboard:i:1;redirectprinters:i:1;devicestoredirect:s:*;redirectcomports:i:1;redirectsmartcards:i:0;usbdevicestoredirect:s:*;enablecredsspsupport:i:1;redirectwebauthn:i:1;use multimon:i:0;smart sizing:i:1;dynamic resolution:i:1;autoreconnection enabled:i:1;bandwidthautodetect:i:1;networkautodetect:i:1;compression:i:1'
     registrationInfo: {
       expirationTime: tokenExpirationTime
       token: null
@@ -138,14 +141,14 @@ resource hostPool_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021
       {
         categoryGroup: 'allLogs'
         enabled: true
-        retentionPolicy: {
-          enabled: true
-          days: diagnosticRetentionInDays
-        }
       }
     ]
   }
 }
+
+/*TASK*/
+//Have a go at filling in the the required properties based in the reference link below
+//you will need hostPoolArmPath and aplicationGroupType as the least
 
 //Create the Application Group and connect it to the host pool
 //Application Groups are the third layer in AVD. they are a container for AVD "applications" which include Desktops or Application (RemoteApp)
@@ -156,9 +159,8 @@ resource appGroup 'Microsoft.DesktopVirtualization/applicationGroups@2022-09-09'
   location: location
   tags: tags
   properties: {
+    //Up to you - hostPoolArmPath, aplicationGroupType
     hostPoolArmPath: hostPool.id
-    friendlyName: 'App Group for ${hostPoolName}'
-    description: 'App GRoup for ${hostPoolName}'
     applicationGroupType: 'Desktop'
   }
 }
@@ -171,6 +173,12 @@ resource DVURoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' 
   scope: subscription()
   name: appGroupRoleDefinitionID
 }
+
+/*TASK*/
+//Fill out the properties for the roleAssignment.  In this case you need to provide:
+//Role definition id (the resource you have just retrieved)
+//The principal ID (application group ID passed in as a parameter)
+//principalType (up to you)
 
 //Then add the user to that role on the App Group
 //Note that the Name field here used guid().  This creates the required globally unique GUID for this particular role assignment
@@ -187,7 +195,7 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
-//Configure the diagnostics for the application group
+//diagnostic settings for the application group
 resource appGroup_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   name: '${hostPoolAppGroupName}-diag'
   scope: appGroup
@@ -197,10 +205,6 @@ resource appGroup_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021
       {
         categoryGroup: 'allLogs'
         enabled: true
-        retentionPolicy: {
-          enabled: true
-          days: diagnosticRetentionInDays
-        }
       }
     ]
   }
@@ -215,15 +219,14 @@ resource workspace 'Microsoft.DesktopVirtualization/workspaces@2022-09-09' = {
   location: location
   tags: tags
   properties: {
-    description: 'Workspace for ${hostPoolName}'
-    friendlyName: 'Workspace for ${hostPoolName}'
+    //up to you - applicationGroupReferences
     applicationGroupReferences: [
       appGroup.id
     ]
   }
 }
 
-//Configure the diagnostics for the workspace
+//Diagnostic Settings for the workspace
 resource workspace_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   name: '${hostPoolWorkspaceName}-diag'
   scope: workspace
@@ -233,15 +236,18 @@ resource workspace_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@202
       {
         categoryGroup: 'allLogs'
         enabled: true
-        retentionPolicy: {
-          enabled: true
-          days: diagnosticRetentionInDays
-        }
       }
     ]
   }
 }
 
+
+/*TASK*/
+//If you have time
+//Add Diagnostic settings for both the application group and workspace
+
+
+//The bit below is OPTIONAL
 //Deploy the scaling plan and link it to the host pool - note this does not have any schedules set at this time
 //Ref: https://learn.microsoft.com/en-gb/azure/templates/microsoft.desktopvirtualization/scalingplans?tabs=bicep&pivots=deployment-language-bicep
 resource scalingPlan 'Microsoft.DesktopVirtualization/scalingPlans@2022-09-09' = {
@@ -249,10 +255,8 @@ resource scalingPlan 'Microsoft.DesktopVirtualization/scalingPlans@2022-09-09' =
   location: location
   tags: tags
   properties: {
-    friendlyName: 'Scaling plan for ${hostPoolName}'
-    description: 'Scaling plan for ${hostPoolName}'
-    timeZone: 'GMT Standard Time'
     hostPoolType: 'Pooled'
+    timeZone: 'GMT Standard Time'
     hostPoolReferences: [
       {
         hostPoolArmPath: hostPool.id
@@ -262,23 +266,10 @@ resource scalingPlan 'Microsoft.DesktopVirtualization/scalingPlans@2022-09-09' =
   }
 }
 
-resource scalingPlan_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
-  name: '${hostPoolScalePlanName}-diag'
-  scope: scalingPlan
-  properties: {
-    workspaceId: !empty(diagnosticWorkspaceId) ? diagnosticWorkspaceId : null
-    logs: [
-      {
-        categoryGroup: 'allLogs'
-        enabled: true
-        retentionPolicy: {
-          enabled: true
-          days: diagnosticRetentionInDays
-        }
-      }
-    ]
-  }
-}
+// resource scalingPlan_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+//   name: '${hostPoolScalePlanName}-diag'
+//   //Up to you
+// }
 
 
 output hostPoolName string = hostPoolName

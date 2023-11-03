@@ -47,10 +47,6 @@ param tags object = {
   workload: workloadName
 }
 
-//Notice in this paramater case, we are using integers.  If passing in from powershell, we may need to use casting using the [int] type
-@description('Optional: The number of days to retain data in the Log Analytics Workspace')
-param lawDataRetention int = 30
-
 //VARIABLES
 // Variables are created at runtime and are usually used to build up resource names where not defined as a parameter, or to use functions and logic to define a value
 // In most cases, you could just provide these as defaulted parameters, however you cannot use logic on parameters
@@ -71,7 +67,6 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10
     sku: {
       name: lawSKU
     }
-    retentionInDays: lawDataRetention
   }
 }
 

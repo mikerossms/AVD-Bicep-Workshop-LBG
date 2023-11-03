@@ -15,9 +15,6 @@ param tags object
 @description('Required: The ID of the Log Analytics workspace to which you would like to send Diagnostic Logs.')
 param diagnosticWorkspaceId string
 
-@description('Optional: Log retention policy - number of days to keep the logs.')
-param diagnosticRetentionInDays int = 30
-
 @secure()
 @description('Required: The domain admin password to be stored in the keyvault')
 param domainAdminPassword string
@@ -25,7 +22,6 @@ param domainAdminPassword string
 @secure()
 @description('Required: The local admin password to be stored in the keyvault')
 param localAdminPassword string
-
 
 //VARIABLES
 
@@ -39,18 +35,13 @@ resource Vault 'Microsoft.KeyVault/vaults@2022-07-01' = {
   location: location
   tags: tags
   properties: {
-    enabledForDeployment: true
-    enabledForTemplateDeployment: true
-    enabledForDiskEncryption: false
-    //enablePurgeProtection: false (only if soft delete is set to true)
-    enableRbacAuthorization: true
     enableSoftDelete: false
-    tenantId: tenant().tenantId
-    accessPolicies: []
     sku: {
       name: 'standard'
       family: 'A'
     }
+    tenantId: tenant().tenantId
+    accessPolicies: []
     networkAcls: {
       defaultAction: 'Deny'
       bypass: 'AzureServices'
@@ -69,10 +60,6 @@ resource virtualNetwork_diagnosticSettings 'Microsoft.Insights/diagnosticSetting
       {
         categoryGroup: 'allLogs'
         enabled: true
-        retentionPolicy: {
-          enabled: true
-          days: diagnosticRetentionInDays
-        }
       }
     ]
   }
