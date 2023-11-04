@@ -55,8 +55,8 @@ $avdSnetCIDR = $avdVnetCIDR
 
 #Configure the DNS servers to use for this service - These are static and point to the already deployed AADDS, so will not need to change
 $adServerIPAddresses = @(
-  '10.240.0.5'
-  '10.240.0.6'
+  '10.99.99.4'
+  '10.99.99.5'
 )
 
 #Set up some basic tags to attach to resources

@@ -95,6 +95,7 @@ resource KeyVault 'Microsoft.KeyVault/vaults@2022-11-01' existing = {
   name: keyVaultName
 }
 
+
 /*TASK*/
 //How can you modify the module below to build out more than one host.
 

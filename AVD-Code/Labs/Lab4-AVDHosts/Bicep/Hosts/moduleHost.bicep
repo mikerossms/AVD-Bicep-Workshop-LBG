@@ -86,7 +86,8 @@ param storageAccountType string = 'StandardSSD_LRS'
 var vmName = toLower('host-${workloadName}-${location}-${localEnv}-${uniqueName}-${hostNumber}')
 
 //the base host name (i.e. within windows itself) for each VM created
-var vmHostName = toLower('host${workloadName}${uniqueName}${hostNumber}')
+var maxunique = take(uniqueName,5)
+var vmHostName = toLower('hst${workloadName}${maxunique}${hostNumber}')
 
 //the base Network Interface name for each VM created
 var vmNicName = toLower('nic-${workloadName}-${location}-${localEnv}-${uniqueName}-${hostNumber}')
@@ -95,7 +96,6 @@ var vmNicName = toLower('nic-${workloadName}-${location}-${localEnv}-${uniqueNam
 //Note we are using an environment variable here to manage the domain element.  this is good practice.
 //Ref: https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/bicep-functions-deployment#environment 
 var dscConfigURL = 'https://wvdportalstorageblob.blob.${environment().suffixes.storage}/galleryartifacts/Configuration.zip'
-
 
 /*TASK*/
 //Each VM being deployed is made up of a VM with storage and an operating system, a network interface and several extensions
