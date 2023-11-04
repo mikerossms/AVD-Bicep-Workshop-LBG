@@ -35,6 +35,9 @@ if (-not $avdVnetCIDR) {
     exit 1
 }
 
+#Keyvault and secret location for the VM Joiner Password
+$domainKeyVaultName = "kv-entrads"
+$domainVMJoinerSecretKey = "domainjoiner"
 
 #Define the name of both the diagnostic and AVD deployment RG
 $diagRGName = "rg-$workloadNameDiag-$location-$localEnv-$uniqueIdentifier"

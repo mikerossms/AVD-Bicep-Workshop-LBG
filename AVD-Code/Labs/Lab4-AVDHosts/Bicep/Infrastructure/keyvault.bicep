@@ -23,6 +23,9 @@ param domainAdminPassword string
 @description('Required: The local admin password to be stored in the keyvault')
 param localAdminPassword string
 
+@description('Required: The ID of user or group to be granted secret access to the keyvault')
+param vaultGroupUserID string
+
 //VARIABLES
 
 //RESOURCES
@@ -43,11 +46,30 @@ resource Vault 'Microsoft.KeyVault/vaults@2022-07-01' = {
     tenantId: tenant().tenantId
     accessPolicies: []
     networkAcls: {
-      defaultAction: 'Deny'
+      defaultAction: 'Allow'
       bypass: 'AzureServices'
       ipRules: []
       virtualNetworkRules: []
     }
+    publicNetworkAccess: 'Enabled'
+    enabledForDeployment: true
+    enabledForTemplateDeployment: true
+    enableRbacAuthorization:true
+  }
+}
+
+resource keyVaultSecretOfficerRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  scope: subscription()
+  name: 'b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
+}
+
+resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: Vault
+  name: guid(Vault.id, vaultGroupUserID, keyVaultSecretOfficerRoleDefinition.id)
+  properties: {
+    roleDefinitionId: keyVaultSecretOfficerRoleDefinition.id
+    principalId: vaultGroupUserID
+    principalType: 'User'
   }
 }
 

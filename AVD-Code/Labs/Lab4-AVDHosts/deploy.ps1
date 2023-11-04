@@ -22,7 +22,8 @@ param (
     [String]$avdVnetCIDR="",
     [Int]$numberOfHostsToDeploy = 1,
     [Bool]$dologin = $false,
-    [Bool]$updateVault = $false
+    [Bool]$updateVault = $false,
+    [Bool]$useCentralVMJoinerPwd = $true
 )
 
 if (-not $uniqueIdentifier) {
@@ -39,6 +40,10 @@ if ($numberOfHostsToDeploy -gt 2) {
     Write-Error "Please do not deploy more than 2 hosts."
     exit 1
 }
+
+#Keyvault and secret location for the VM Joiner Password
+$domainKeyVaultName = "kv-entrads"
+$domainVMJoinerSecretKey = "domainjoiner"
 
 #Define the name of both the diagnostic and AVD deployment RG
 $diagRGName = "rg-$workloadNameDiag-$location-$localEnv-$uniqueIdentifier"

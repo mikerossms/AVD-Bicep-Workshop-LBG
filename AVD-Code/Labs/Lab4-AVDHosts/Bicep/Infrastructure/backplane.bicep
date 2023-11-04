@@ -154,6 +154,7 @@ module KeyVault 'keyvault.bicep' = if (deployVault) {
     diagnosticWorkspaceId: LAWorkspace.id
     domainAdminPassword: domainAdminPassword
     localAdminPassword: localAdminPassword
+    vaultGroupUserID: appGroupUserID
   }
 }
 
