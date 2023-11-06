@@ -52,7 +52,7 @@ $avdRGName = "rg-$workloadNameAVD-$location-$localEnv-$uniqueIdentifier"
 #Leave these settings as they are - they set up the connection and access to the domain.
 $domainName = "quberatron.com"
 $domainAdminUsername = "vmjoiner@$domainName"
-$domainOUPath = "OU=LBGAVD,DC=quberatron,DC=com"
+$domainOUPath = "OU=LBG,DC=quberatron,DC=com"
 $localAdminUsername = "localadmin"
 
 #Configure the domain and local admin passwords
