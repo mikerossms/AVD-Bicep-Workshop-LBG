@@ -5,8 +5,8 @@ resource localNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' existing = 
 }
 
 resource remoteNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
-  name: 'vnet-identity'
-  scope: resourceGroup('rg-identity')
+  name: 'aadds-vnet'
+  scope: resourceGroup('RG-EntraDomainServices')
 }
 
 //Peering from local to remote
@@ -22,7 +22,7 @@ module virtualNetworkPeeringToRemote 'Infrastructure/moduleRemotePeer.bicep' = {
 //Peering from remote to local
 module virtualNetworkPeeringFromRemote 'Infrastructure/moduleRemotePeer.bicep' = {
   name: 'local-from-remote'
-  scope: resourceGroup('rg-identity')
+  scope: resourceGroup('RG-EntraDomainServices')
   params: {
     connectFromVnetName: remoteNetwork.name
     connectToVnetID: localNetwork.id

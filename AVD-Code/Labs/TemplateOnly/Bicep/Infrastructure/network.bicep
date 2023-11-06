@@ -44,10 +44,13 @@ param diagnosticRetentionInDays int = 30
 
 //Identity Vnet Parameters
 // @description('Optional: The name of the identity vnet to peer to')
-// param identityVnetName string = 'vnet-identity'
+// param identityVnetName string = 'aadds-vnet'
 
 // @description('Optional: The resource group containing the identity vnet to peer to')
-// param identityVnetRG string = 'rg-identity'
+// param identityVnetRG string = 'RG-EntraDomainServices'
+
+@description('Optional: The subscription containing the identity vnet to peer to')
+param identityVnetSub string = ''
 
 // @description('Required: The IP Address of the AD Server or AADDS Server to use as the DNS server for the VNET')
 // param adServerIPAddresses array

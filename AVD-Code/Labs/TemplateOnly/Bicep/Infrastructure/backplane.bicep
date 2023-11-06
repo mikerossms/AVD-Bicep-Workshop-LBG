@@ -81,10 +81,13 @@ param avdSnetCIDR string
 
 //Identity VNET Details
 @description('Optional: The name of the identity vnet to peer to')
-param identityVnetName string = 'vnet-identity'
+param identityVnetName string = 'aadds-vnet'
 
 @description('Optional: The resource group containing the identity vnet to peer to')
-param identityVnetRG string = 'rg-identity'
+param identityVnetRG string = 'RG-EntraDomainServices'
+
+@description('Optional: The subscription containing the identity vnet to peer to')
+param identityVnetSub string = ''
 
 @description('Required: The IP addresses of the AD server or AADDS that the VNET will used for name lookup')
 param adServerIPAddresses array
@@ -140,6 +143,7 @@ resource LAWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' exist
 //     diagnosticWorkspaceId: LAWorkspace.id
 //     identityVnetName: identityVnetName
 //     identityVnetRG: identityVnetRG
+    identityVnetSub: identityVnetSub
 //     adServerIPAddresses: adServerIPAddresses
 //   }
 // }

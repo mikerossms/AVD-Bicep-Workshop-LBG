@@ -76,10 +76,13 @@ param avdSnetCIDR string
 
 //Identity VNET Details
 @description('Optional: The name of the identity vnet to peer to')
-param identityVnetName string = 'vnet-LBGCentralHub-dev-uksouth-001'
+param identityVnetName string = 'aadds-vnet'
 
 @description('Optional: The resource group containing the identity vnet to peer to')
-param identityVnetRG string = 'rg-lbgcentralhub-dev-uksouth-001'
+param identityVnetRG string = 'RG-EntraDomainServices'
+
+@description('Optional: The subscription containing the identity vnet to peer to')
+param identityVnetSub string = 'ea66f27b-e8f6-4082-8dad-006a4e82fcf2'
 
 @description('Required: The IP addresses of the AD server or AADDS that the VNET will used for name lookup')
 param adServerIPAddresses array
@@ -138,6 +141,7 @@ module Network 'network.bicep' = {
     diagnosticWorkspaceId: LAWorkspace.id
     identityVnetName: identityVnetName
     identityVnetRG: identityVnetRG
+    identityVnetSub: identityVnetSub
     adServerIPAddresses: adServerIPAddresses
     adDomainName: 'quberatron.com'
   }

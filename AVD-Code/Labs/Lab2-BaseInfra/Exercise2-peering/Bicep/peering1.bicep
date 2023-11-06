@@ -5,8 +5,8 @@ resource localNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' existing = 
 }
 
 resource remoteNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
-  name: 'vnet-identity'
-  scope: resourceGroup('rg-identity')
+  name: 'aadds-vnet'
+  scope: resourceGroup('RG-EntraDomainServices')
 }
 
 //Peering from Local to Remote

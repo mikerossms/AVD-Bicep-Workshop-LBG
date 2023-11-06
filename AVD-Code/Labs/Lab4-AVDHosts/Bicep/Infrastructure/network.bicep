@@ -41,13 +41,17 @@ param diagnosticWorkspaceId string = ''
 
 //Identity Vnet Parameters
 @description('Optional: The name of the identity vnet to peer to')
-param identityVnetName string = 'vnet-identity'
+param identityVnetName string = 'aadds-vnet'
 
 @description('Optional: The resource group containing the identity vnet to peer to')
-param identityVnetRG string = 'rg-identity'
+param identityVnetRG string = 'RG-EntraDomainServices'
+
+@description('Optional: The subscription containing the identity vnet to peer to')
+param identityVnetSub string = ''
 
 @description('Required: The IP Address of the AD Server or AADDS Server to use as the DNS server for the VNET')
 param adServerIPAddresses array
+
 
 //VARIABLES
 var vnetName = toLower('vnet-${workloadName}-${location}-${localEnv}-${uniqueName}')
@@ -157,7 +161,7 @@ resource vnet_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-
 //Ref: https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/existing-resource 
 resource identityVnet 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
   name: identityVnetName
-  scope: resourceGroup(identityVnetRG)
+  scope: resourceGroup(identityVnetSub,identityVnetRG)
 }
 
 //So this first resource uses the existing vnet that we created earlier to link to the identity vnet using the vnets resource id
@@ -176,7 +180,7 @@ module outboundPeering 'moduleRemotePeer.bicep' = {
 //Ref: Scoping: https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/bicep-functions-scope
 module inboundPeering 'moduleRemotePeer.bicep' = {
   name: 'inboundPeering'
-  scope: resourceGroup(identityVnetRG)
+  scope: resourceGroup(identityVnetSub,identityVnetRG)
   params: {
     connectFromVnetName: identityVnetName
     connectToVnetID: virtualNetwork.id
