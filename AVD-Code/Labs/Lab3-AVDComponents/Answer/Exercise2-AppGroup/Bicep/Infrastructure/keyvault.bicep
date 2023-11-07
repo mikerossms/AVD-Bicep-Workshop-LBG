@@ -48,7 +48,12 @@ resource Vault 'Microsoft.KeyVault/vaults@2022-07-01' = {
       ipRules: []
       virtualNetworkRules: []
     }
+    publicNetworkAccess: 'Enabled'
+    enabledForDeployment: true
+    enabledForTemplateDeployment: true
+    enableRbacAuthorization:true
   }
+  
 }
 
 resource virtualNetwork_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticWorkspaceId)) {

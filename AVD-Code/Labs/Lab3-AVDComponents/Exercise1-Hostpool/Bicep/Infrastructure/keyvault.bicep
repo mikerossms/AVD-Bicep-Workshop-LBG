@@ -47,7 +47,12 @@ resource Vault 'Microsoft.KeyVault/vaults@2022-07-01' = {
       bypass: 'AzureServices'
       ipRules: []
       virtualNetworkRules: []
+   
     }
+    publicNetworkAccess: 'Enabled'
+    enabledForDeployment: true
+    enabledForTemplateDeployment: true
+    enableRbacAuthorization:true
   }
 }
 

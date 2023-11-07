@@ -90,7 +90,7 @@ resource LAWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' exist
 
 //Deploy the Network resources
 //Note: that we are passing in the LAWWorkspace ID from the resource we pulled in above
-module Network 'nsg.bicep' = {
+module Nsg 'nsg.bicep' = {
   name: 'Network'
   params: {
     vnetCIDR: avdVnetCIDR
@@ -102,3 +102,4 @@ module Network 'nsg.bicep' = {
     diagnosticWorkspaceId: LAWorkspace.id
   }
 }
+output nsgID string = Nsg.outputs.nsgID

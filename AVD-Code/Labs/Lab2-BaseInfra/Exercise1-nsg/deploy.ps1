@@ -128,7 +128,7 @@ $backplaneOutput = New-AzResourceGroupDeployment -Name "Deploy-Backplane" `
     avdVnetCIDR=$avdVnetCIDR
 }
 
-if (-not $backplaneOutput.Outputs.subNetId.Value) {
+if (-not $backplaneOutput.Outputs.nsgID.Value) {
     Write-Error "ERROR: Failed to deploy BackPlane to Resource Group: $avdRGName"
     exit 1
 }
