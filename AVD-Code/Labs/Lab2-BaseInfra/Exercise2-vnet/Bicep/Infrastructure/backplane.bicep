@@ -96,6 +96,21 @@ resource LAWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' exist
 
 //Deploy the Network resources
 //Note: that we are passing in the LAWWorkspace ID from the resource we pulled in above
+module NSG 'nsg.bicep' = {
+  name: 'NSG'
+  params: {
+    vnetCIDR: avdVnetCIDR
+    location: location
+    localEnv: localEnv
+    uniqueName: uniqueName
+    workloadName: workloadName
+    tags: tags
+    diagnosticWorkspaceId: LAWorkspace.id
+  }
+}
+
+//Deploy the Network resources
+//Note: that we are passing in the LAWWorkspace ID from the resource we pulled in above
 module Network 'network.bicep' = {
   name: 'Network'
   params: {
@@ -108,6 +123,7 @@ module Network 'network.bicep' = {
     snetCIDR: avdSnetCIDR
     diagnosticWorkspaceId: LAWorkspace.id
     adServerIPAddresses: adServerIPAddresses
+    networkSecurityGroupID: NSG.outputs.nsgID
   }
 }
 

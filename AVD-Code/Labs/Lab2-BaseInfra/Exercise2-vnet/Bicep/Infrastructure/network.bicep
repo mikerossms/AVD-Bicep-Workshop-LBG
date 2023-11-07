@@ -39,60 +39,16 @@ param snetCIDR string
 @description('Optional: The ID of the Log Analytics workspace to which you would like to send Diagnostic Logs.')
 param diagnosticWorkspaceId string = ''
 
+@description('Required: The ID of the of the Network Security Group to attacg to the Subnet')
+param networkSecurityGroupID string
+
 @description('Required: The IP Address of the AD Server or AADDS Server to use as the DNS server for the VNET')
 param adServerIPAddresses array
 
 //VARIABLES
 var vnetName = toLower('vnet-${workloadName}-${location}-${localEnv}-${uniqueName}')
 var snetName = toLower('snet-${workloadName}-${location}-${localEnv}-${uniqueName}')
-var nsgName = toLower('nsg-${workloadName}-${location}-${localEnv}-${uniqueName}')
-var nsgAVDRuleName = toLower('AllowRDPInbound')
 
-//Create the Network Security Group (there is very little to creating one, but it is a good idea to have one for each subnet)
-//Ref: https://learn.microsoft.com/en-gb/azure/templates/microsoft.network/networksecuritygroups?tabs=bicep&pivots=deployment-language-bicep
-resource networkSecurityGroup 'Microsoft.Network/networkSecurityGroups@2022-07-01' = {
-  name: nsgName
-  location: location
-  tags: tags
-}
-
-//Enable Diagnostics on the NSG
-//In this case we have a scope in the resource which defines which resource that this diagnostic setting is for
-//We are also using some logic, so if this is not passed in from the parent, then this will be skipped without causing errors
-//Ref: https://learn.microsoft.com/en-gb/azure/templates/microsoft.insights/diagnosticsettings?tabs=bicep&pivots=deployment-language-bicep
-resource networkSecurityGroup_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(diagnosticWorkspaceId)) {
-  name: '${nsgName}-diag'
-  scope: networkSecurityGroup
-  properties: {
-    workspaceId: !empty(diagnosticWorkspaceId) ? diagnosticWorkspaceId : null
-    logs: [
-      {
-        categoryGroup: 'allLogs'
-        enabled: true
-      }
-    ]
-  }
-}
-
-//Set up the AVD rule for the NSG
-//Note: AVD does not require RDP access from anywhere else as the connection is handled by the PaaS service underneath
-//There are other forms of connection available as well, but this is the most common.
-//Ref: https://learn.microsoft.com/en-gb/azure/templates/microsoft.network/networksecuritygroups/securityrules?tabs=bicep&pivots=deployment-language-bicep
-resource securityRule 'Microsoft.Network/networkSecurityGroups/securityRules@2022-07-01' = {
-  name: nsgAVDRuleName
-  parent: networkSecurityGroup
-  properties: {
-    //Need to enable port TCP/3389 from the virtualnetwork
-    access: 'Allow'
-    protocol: 'Tcp'
-    destinationPortRange: '3389'
-    destinationAddressPrefix: vnetCIDR
-    sourceAddressPrefix: 'VirtualNetwork'
-    sourcePortRange: '*'
-    direction: 'Inbound'
-    priority: 100
-  }
-}
 
 //Create the virtual network (vnet) and subnet (snet) objects
 //Note that the SNET will have a set of storage endpoints and keyvault endpoints enabled
@@ -118,7 +74,7 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' = {
         properties: {
             addressPrefix: snetCIDR
             networkSecurityGroup: {
-              id: networkSecurityGroup.id
+              id: networkSecurityGroupID
             }
         }
       }
@@ -141,5 +97,3 @@ output vnetName string = virtualNetwork.name
 output vnetID string = virtualNetwork.id
 output snetName string = virtualNetwork.properties.subnets[0].name
 output snetID string = virtualNetwork.properties.subnets[0].id
-output nsgName string = networkSecurityGroup.name
-output nsgID string = networkSecurityGroup.id
